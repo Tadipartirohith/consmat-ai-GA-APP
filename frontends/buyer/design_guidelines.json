@@ -1,0 +1,92 @@
+{
+  "theme": "dark",
+  "brand": {
+    "name": "Consmat AI",
+    "description": "B2B Construction Materials Procurement Marketplace in India",
+    "archetype": "The Performance Pro / Industrial Tactical",
+    "emotion": "Trust, Precision, Industrial Strength, High-tech"
+  },
+  "typography": {
+    "fonts": {
+      "headings": "Chivo, sans-serif",
+      "body": "Manrope, sans-serif",
+      "mono": "JetBrains Mono, monospace"
+    },
+    "scale": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl tracking-tighter font-black",
+      "h2": "text-2xl sm:text-3xl lg:text-4xl tracking-tight font-bold",
+      "h3": "text-xl sm:text-2xl tracking-tight font-bold",
+      "h4": "text-lg sm:text-xl font-semibold",
+      "body": "text-base leading-relaxed",
+      "small": "text-sm",
+      "labels": "text-xs tracking-[0.2em] uppercase font-bold"
+    },
+    "instructions_to_main_agent": "Ensure tight letter spacing for headings. DO NOT use generic fonts for headings. Load Chivo and Manrope from Google Fonts in index.css."
+  },
+  "colors": {
+    "background": "#0f1216",
+    "panels": "#171c22",
+    "accent": "#ff7a2f",
+    "accent_hover": "#e66822",
+    "text_primary": "#ffffff",
+    "text_secondary": "#a1a1aa",
+    "borders": "rgba(255, 255, 255, 0.1)",
+    "success": "#22c55e",
+    "warning": "#eab308",
+    "danger": "#ef4444",
+    "instructions_to_main_agent": "Configure Tailwind config with these exact colors. Use background for main body, panels for cards/modals/dropdowns. Do NOT use standard gray gradients. Accent color #ff7a2f MUST be used for primary CTAs and active states."
+  },
+  "visual_enhancers": {
+    "surfaces": "Solid flat panels (#171c22) with 1px border-white/10. NO transparent backgrounds for overlays or headers. Headers must have a solid background (#0f1216 or #171c22) to prevent text collision. Use a slight blur if using semi-transparent, but prefer solid.",
+    "shadows": "Ambient subtle dark shadows shadow-[0_8px_30px_rgb(0,0,0,0.5)].",
+    "borders": "1px solid rgba(255,255,255,0.1) on panels, radius 12px (rounded-xl) for modern industrial feel."
+  },
+  "layouts": {
+    "grid": "High Density Grid for dashboards. Mobile-first grid-cols-1 md:grid-cols-3 lg:grid-cols-4 for vendor cards. Strict hierarchy. Use gap-4 or gap-6.",
+    "spacing": "Generous spacing. p-6 or p-8 inside cards. Large gaps between distinct sections.",
+    "container": "Max-width 7xl mx-auto px-4 md:px-8 for main layout.",
+    "header": "Sticky header, z-50, solid background (#0f1216). Must include Location Picker and 'Cheapest <-> Best quality' slider."
+  },
+  "components_strategy": {
+    "general": "Use Shadcn components but strip default 'Vercel' look to match tactical industrial dark theme.",
+    "cards": "Vendor Match Cards: must show landed price, logistics breakdown, quality stars, warehouse distance, and 'why' explanation. Dense but highly legible.",
+    "ai_chat": "Chat Panel: sleek terminal-inspired but modern. Responses with dark orange/gray chips for suggestions. Include ranked vendor cards in chat and 'Add all to cart'.",
+    "tables": "BOM Estimate Table: flat, no rounded inner cells, clear borders, sticky headers. Use solid #171c22 for table background.",
+    "modals": "Checkout Modal: Solid #171c22 background, dim #000000/80 backdrop. Clear UPI/Card/Credit options.",
+    "icons": "Use lucide-react. Standardize sizes (w-5 h-5 for inline, w-8 h-8 for featured).",
+    "toasts": "Use sonner for notifications. Dark theme configured.",
+    "data_testid": "MANDATORY. Add descriptive data-testid to every interactive element (e.g., login-submit, location-picker, shop-mode-tab, slider-price-quality)."
+  },
+  "motion": {
+    "hover": "Subtle translation (-translate-y-1 on cards) and border highlight (border-[#ff7a2f]/50).",
+    "transitions": "Target specific properties. DO NOT use 'transition-all'. Use transition-transform, transition-colors duration-200.",
+    "loading": "Use skeleton loaders matching panel color (#171c22) and subtle pulse."
+  },
+  "media": {
+    "image_urls": {
+      "login_bg": {
+        "url": "https://images.unsplash.com/photo-1644221150167-fb4fafa7f411?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODh8MHwxfHNlYXJjaHw0fHxjb25zdHJ1Y3Rpb24lMjBzaXRlJTIwbW9kZXJufGVufDB8fHx8MTc4NjIyMTMyMHww&ixlib=rb-4.1.0&q=85",
+        "description": "Modern construction site crane (Use as faded background for login)"
+      },
+      "material_steel": {
+        "url": "https://images.unsplash.com/photo-1623489254637-a2dd8375243d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w7NDk1ODB8MHwxfHNlYXJjaHwxfHxzdGVlbCUyMHJlYmFycyUyMGNvbnN0cnVjdGlvbnxlbnwwfHx8fDE3ODYyMjEzMjB8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Steel rebars (Use for shop items)"
+      },
+      "material_cement": {
+        "url": "https://images.unsplash.com/photo-1773394089934-3e29f2a3d6a9?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNTl8MHwxfHNlYXJjaHwzfHxjZW1lbnQlMjBiYWdzJTIwc3RhY2t8ZW58MHx8fHwxNzg2MjIxMzIwfDA&ixlib=rb-4.1.0&q=85",
+        "description": "Cement bags (Use for shop items)"
+      }
+    }
+  },
+  "universal_guidelines_for_main_agent": [
+    "You tend to converge toward generic outputs. AVOID AI slop. Stick to the sharp, dark, high-contrast industrial aesthetic defined.",
+    "NO transparent dropdowns or header backgrounds. Always apply #171c22 or #0f1216 to surface backgrounds.",
+    "NEVER use generic emoji icons (🤖🧠💡) - rely purely on lucide-react.",
+    "Implement the API integrations strictly as described (GET /materials, POST /match, POST /ai/chat, POST /estimate, POST /optimize, POST /orders/checkout, GET /orders). Add token Bearer header using the user's JWT.",
+    "Ensure the 'Cheapest <-> Best quality' slider is a prominent 0-100 range input in the header.",
+    "Format all prices using INR ₹ symbol.",
+    "Always use data-testid on interactive elements for testing.",
+    "Make sure the App does NOT have default text-align: center applied. Left-align text.",
+    "Create a solid Mobile-first layout: stack columns on mobile, use grid-cols-3 or 4 on desktop."
+  ]
+}

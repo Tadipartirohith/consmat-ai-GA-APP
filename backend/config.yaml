@@ -1,0 +1,199 @@
+# =============================================================================
+# Consmat AI — SINGLE SOURCE OF ALL VARIABLE DATA
+# Edit this file to change catalog, vendors, pricing rules, demo accounts,
+# thresholds, seeded orders, ports, etc. Nothing here is hard-coded in the app.
+# The backend loads this at startup (hot-editable: restart the api container).
+# =============================================================================
+
+app:
+  name: "Consmat AI"
+  api_prefix: "/api/v1"
+  # JWT
+  jwt_secret: "change-me-in-prod"
+  jwt_alg: "HS256"
+  access_token_ttl_min: 1440
+  # How many demo orders to synthesize on boot (spread across statuses)
+  seed_orders: 14
+  # Deterministic seed so generated demo data is stable across restarts
+  random_seed: 42
+
+# --- Price <-> Quality engine ------------------------------------------------
+pricing:
+  rate_per_km: 38
+  handling: 600
+  quality_gate: 3.3
+  load_factor:
+    cement: 1.0
+    steel: 1.4
+    sand: 1.6
+    aggregate: 1.6
+    bricks: 1.3
+
+# --- Logistics rules (admin "Logistics Rules" screen; flat, editable) --------
+logistics_config:
+  rate_per_km: 38
+  handling_fee: 600
+  quality_gate: 3.3
+  min_order_value: 5000
+  free_delivery_threshold: 50000
+  cod_enabled: true
+  express_dispatch: false
+  default_dispatch_hub: "hub"
+  max_delivery_radius_km: 120
+
+# --- Low-stock alert thresholds by unit (operator + vendor) ------------------
+low_stock_thresholds:
+  bags: 200
+  tonnes: 20
+  units: 20
+  kg: 100
+  pcs: 30000
+  default: 20
+
+# --- Warehouses: Consmat hub + spokes ---------------------------------------
+warehouses:
+  - { id: hub,        name: "Consmat Hub (Hyderabad)",  lat: 17.39, lng: 78.49, owner: consmat }
+  - { id: ibrahim,    name: "Ibrahimpatnam Spoke",      lat: 17.24, lng: 78.71, owner: consmat }
+  - { id: medchal,    name: "Medchal Spoke",            lat: 17.63, lng: 78.48, owner: consmat }
+  - { id: sangareddy, name: "Sangareddy Spoke",         lat: 17.62, lng: 78.08, owner: consmat }
+  - { id: bhongir,    name: "Bhongir/Ghatkesar Spoke",  lat: 17.51, lng: 78.89, owner: consmat }
+
+# --- Delivery destinations (buyer sites) ------------------------------------
+locations:
+  - { id: ibrahimpatnam, label: "Ibrahimpatnam", lat: 17.24, lng: 78.71 }
+  - { id: medchal,       label: "Medchal",       lat: 17.63, lng: 78.48 }
+  - { id: sangareddy,    label: "Sangareddy",    lat: 17.62, lng: 78.08 }
+  - { id: bhongir,       label: "Bhongir/Ghatkesar", lat: 17.51, lng: 78.89 }
+  - { id: ghatkesar,     label: "Ghatkesar",     lat: 17.45, lng: 78.68 }
+  - { id: hyderabad,     label: "Hyderabad",     lat: 17.39, lng: 78.49 }
+
+# --- Material catalog (SKU reference) ---------------------------------------
+materials:
+  - { id: cement,    name: "Cement",         category: "Cement",     unit: bags,   grade: "OPC 53-Grade",      qty_hint: 50, per_sqft: 0.40,  image_url: "" }
+  - { id: steel,     name: "TMT Steel",      category: "Steel",      unit: tonnes, grade: "Fe 500D",           qty_hint: 2,  per_sqft: 0.004, image_url: "" }
+  - { id: sand,      name: "River Sand",     category: "Aggregates", unit: tonnes, grade: "Fine (plastering)", qty_hint: 10, per_sqft: 0.0816, image_url: "" }
+  - { id: aggregate, name: "Aggregate 20mm", category: "Aggregates", unit: tonnes, grade: "20mm blue metal",   qty_hint: 10, per_sqft: 0.057, image_url: "" }
+  - { id: bricks,    name: "Bricks",         category: "Masonry",    unit: pcs,    grade: "Class-A red clay",  qty_hint: 500, per_sqft: 8.0, image_url: "" }
+
+# --- Vendors (supply side). offers: material -> {price, stock} ---------------
+vendors:
+  - id: v_deccan
+    name: "Deccan Cements Depot"
+    tier: Stockist
+    category: "Cement"
+    quality: 4.6
+    isi: true
+    credit: "15-day"
+    city: "Medchal"
+    phone: "+91 90000 11001"
+    gstin: "36AAB1234C1Z5"
+    warehouse: medchal
+    approved: true
+    offers: { cement: {price: 415, stock: 2000}, steel: {price: 64500, stock: 40} }
+  - id: v_balaji
+    name: "Sri Balaji Traders"
+    tier: Trader
+    category: "Aggregates"
+    quality: 3.4
+    isi: false
+    credit: "Cash"
+    city: "Ibrahimpatnam"
+    phone: "+91 90000 11002"
+    gstin: "36ABX5678K9K2"
+    warehouse: ibrahim
+    approved: true
+    offers: { cement: {price: 388, stock: 900}, sand: {price: 1150, stock: 300}, aggregate: {price: 1050, stock: 400} }
+  - id: v_ultrabuild
+    name: "UltraBuild Wholesale"
+    tier: Wholesaler
+    category: "Cement"
+    quality: 4.8
+    isi: true
+    credit: "30-day"
+    city: "Hyderabad"
+    phone: "+91 90000 11003"
+    gstin: "36AAUB3456P3P1"
+    warehouse: hub
+    approved: true
+    offers: { cement: {price: 432, stock: 5000}, steel: {price: 63800, stock: 120}, bricks: {price: 8.5, stock: 60000} }
+  - id: v_metro
+    name: "Metro Steel & Cement"
+    tier: Distributor
+    category: "Steel"
+    quality: 4.1
+    isi: true
+    credit: "15-day"
+    city: "Sangareddy"
+    phone: "+91 90000 11004"
+    gstin: "36AAMC7890T7T4"
+    warehouse: sangareddy
+    approved: true
+    offers: { cement: {price: 402, stock: 1500}, steel: {price: 62900, stock: 80}, aggregate: {price: 980, stock: 600} }
+  - id: v_kirana
+    name: "Local Kirana Supplies"
+    tier: Supplier
+    category: "Masonry"
+    quality: 2.9
+    isi: false
+    credit: "Cash"
+    city: "Bhongir"
+    phone: "+91 90000 11005"
+    gstin: "36ALKS2345M2M8"
+    warehouse: bhongir
+    approved: true
+    offers: { cement: {price: 375, stock: 300}, sand: {price: 980, stock: 150}, bricks: {price: 6.9, stock: 30000} }
+  - id: v_godavari
+    name: "Godavari Sand Co."
+    tier: Supplier
+    category: "Aggregates"
+    quality: 4.3
+    isi: true
+    credit: "7-day"
+    city: "Ibrahimpatnam"
+    phone: "+91 90000 11006"
+    gstin: "36AGSC5678R5R9"
+    warehouse: ibrahim
+    approved: true
+    offers: { sand: {price: 1080, stock: 800}, aggregate: {price: 1010, stock: 900} }
+  - id: v_kakatiya
+    name: "Kakatiya Bricks Mfg."
+    tier: Manufacturer
+    category: "Masonry"
+    quality: 4.5
+    isi: true
+    credit: "15-day"
+    city: "Bhongir"
+    phone: "+91 90000 11007"
+    gstin: "36AKBM8901W8W3"
+    warehouse: bhongir
+    approved: true
+    offers: { bricks: {price: 7.2, stock: 200000}, aggregate: {price: 1120, stock: 300} }
+  - id: v_newcement
+    name: "New Cement Traders"
+    tier: Trader
+    category: "Cement"
+    quality: 0.0
+    isi: false
+    credit: "Cash"
+    city: "Medchal"
+    phone: "+91 90000 11008"
+    gstin: "36ANCT0000P0P0"
+    warehouse: medchal
+    approved: false          # pending KYC — appears in admin approval queue
+    offers: { cement: {price: 369, stock: 600} }
+
+# --- Demo accounts (password is the same for all; change here) ---------------
+demo_password: "consmat123"
+demo_users:
+  - { email: "buyer@consmat.com",    name: "Demo Buyer",   role: buyer,    location: medchal }
+  - { email: "vendor@consmat.com",   name: "UltraBuild Owner", role: vendor, vendor: v_ultrabuild }
+  - { email: "admin@consmat.com",    name: "Consmat Admin", role: admin }
+  - { email: "operator@consmat.in",  name: "Hub Operator",  role: operator }
+
+# --- Container ports (compose reads these via .env; listed here for reference)
+ports:
+  backend: 3000
+  buyer: 8080
+  vendor: 8081
+  admin: 8082
+  dispatch: 8083

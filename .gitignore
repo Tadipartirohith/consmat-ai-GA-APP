@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+*.db
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Env / secrets
+.env
+
+# Front-end source maps (build/ itself IS committed so the stack runs on clone)
+frontends/*/frontend/build/**/*.map
+
+# OS
+.DS_Store
+Thumbs.db

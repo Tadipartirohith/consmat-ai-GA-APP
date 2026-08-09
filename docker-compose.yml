@@ -1,0 +1,56 @@
+# =============================================================================
+# Consmat AI — FULL PLATFORM (one command brings up everything live)
+#   backend  : FastAPI unified API (all four apps)   -> http://localhost:3000
+#   buyer / vendor / admin / dispatch : prebuilt React SPAs served by nginx,
+#     which proxies /api to the backend on the internal network (no CORS,
+#     no API-URL config needed).
+#
+# Frontend images are PREBUILT static sites — `docker compose up` just copies
+# files and starts nginx (fast; no npm/webpack in Docker).
+# =============================================================================
+
+services:
+  backend:
+    build: ./backend
+    container_name: consmat-backend
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-prod}
+      # AI chat: leave as stub (deterministic, no key) or set openai/anthropic + key
+      AI_PROVIDER: ${AI_PROVIDER:-stub}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-}
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+    restart: unless-stopped
+
+  buyer:
+    build: ./frontends/buyer
+    container_name: consmat-buyer
+    ports:
+      - "${BUYER_PORT:-8080}:80"
+    depends_on: [backend]
+    restart: unless-stopped
+
+  vendor:
+    build: ./frontends/vendor
+    container_name: consmat-vendor
+    ports:
+      - "${VENDOR_PORT:-8081}:80"
+    depends_on: [backend]
+    restart: unless-stopped
+
+  admin:
+    build: ./frontends/admin
+    container_name: consmat-admin
+    ports:
+      - "${ADMIN_PORT:-8082}:80"
+    depends_on: [backend]
+    restart: unless-stopped
+
+  dispatch:
+    build: ./frontends/dispatch
+    container_name: consmat-dispatch
+    ports:
+      - "${DISPATCH_PORT:-8083}:80"
+    depends_on: [backend]
+    restart: unless-stopped

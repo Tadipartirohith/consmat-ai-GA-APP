@@ -1,0 +1,63 @@
+{
+  "theme": "dark",
+  "concept": "Tactical Operations Console",
+  "typography": {
+    "heading_font": "Chivo",
+    "body_font": "IBM Plex Sans",
+    "data_font": "JetBrains Mono",
+    "instructions": "Use 'Chivo' for all headers (tracking-tight). Use 'IBM Plex Sans' for general UI text. Use 'JetBrains Mono' for all numeric values (INR prices, quantities, stock, ticket IDs) to ensure tabular alignment and technical precision. DO NOT USE INTER OR SPACE GROTESK for headings."
+  },
+  "colors": {
+    "background": "#0f1216",
+    "panels": "#171c22",
+    "primary_accent": "#ff7a2f",
+    "text_primary": "#ffffff",
+    "text_secondary": "#a1a1aa",
+    "border_subtle": "rgba(255, 255, 255, 0.08)",
+    "status_dispatched": "#3b82f6",
+    "status_delivered": "#10b981",
+    "status_pending": "#f59e0b",
+    "instructions": "Stick strictly to this palette. The UI should be predominantly monochrome dark (#0f1216 and #171c22) with high-contrast text. Use #ff7a2f exclusively for primary CTAs (Login, Dispatch actions) and active tab indicators. Do not use gradients for main surfaces."
+  },
+  "visual_enhancers": {
+    "surfaces": "Grid Borders (The Technical Look). Use explicit 1px borders (border-white/10) on panels (#171c22) against the deep background (#0f1216). Flat solid backgrounds, NO glassmorphism to preserve data clarity.",
+    "shadows": "Minimal to zero box-shadows. Rely on 1px borders to separate elements.",
+    "hover_states": "Interactive elements must shift to a slightly lighter surface (e.g., hover:bg-white/5) with explicit hover:text-white to ensure contrast."
+  },
+  "layouts": {
+    "mobile": "Mobile-first approach. Use full-width vertical list items with tight internal padding (p-4) to maximize data density on small screens.",
+    "desktop": "High-density grid (grid-cols-1 md:grid-cols-2 xl:grid-cols-3) for order tickets. Use tight gaps (gap-4) to fit operational data.",
+    "spacing": "Tight padding inside data cells, but ensure at least gap-6 between major layout sections (like Nav and Main Content)."
+  },
+  "components": {
+    "navigation": "Top navigation bar (sticky) containing Brand/Logo, Tab triggers (Dispatch Queue / Network Stock), and a Logout button. MUST use a solid background (#0f1216) with a bottom border (border-white/10) to prevent content bleeding on scroll.",
+    "tabs": "Use minimal text-based tabs with an active underline indicator using the #ff7a2f accent color. DO NOT hide links behind a hamburger menu on desktop.",
+    "buttons": "Sharp corners (rounded-none or max rounded-sm). Solid #ff7a2f background for primary actions. Must include hover transition and focus rings.",
+    "tickets": "Consolidated multi-vendor tickets should visually group items by vendor. Display vendor star ratings inline using small star icons. Use clear typography hierarchy for INR totals vs item quantities.",
+    "icons": "Use @phosphor-icons/react (yarn add @phosphor-icons/react). Use weight='regular' or 'duotone' for a technical feel.",
+    "ratings": "Use filled star icons for vendor ratings, colored in a subtle warning yellow or the accent orange."
+  },
+  "accessibility": {
+    "contrast": "Ensure minimum 4.5:1 text contrast. Secondary text must be #a1a1aa or lighter against #171c22.",
+    "focus": "All interactive elements must have focus-visible styling (e.g., ring-2 ring-[#ff7a2f] ring-offset-2 ring-offset-[#0f1216]).",
+    "data_attributes": "All interactive and key informational elements MUST include a data-testid attribute in kebab-case (e.g., data-testid='dispatch-btn-123')."
+  },
+  "instructions_to_main_agent": [
+    "Do NOT build a backend. Call the existing OpenAPI endpoints with prefix /api/v1.",
+    "Implement JWT bearer token auth from POST /api/v1/auth/login. Store the token and append 'Authorization: Bearer <token>' to all protected requests.",
+    "The app uses standard .js files (no TypeScript/TSX). Ensure all code is written in standard JS/JSX.",
+    "Do not apply global transitions (e.g., transition: all). Add explicit transitions (e.g., transition-colors) on buttons/interactive items.",
+    "Use standard fetch API or axios for data fetching.",
+    "Ensure 'INR ₹' format is used for all monetary values.",
+    "Build a resilient mobile-first dashboard that acts as a 'command center' for operators.",
+    "Handle loading and error states gracefully (especially for network stock and dispatch queues)."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "You tend to converge toward generic outputs. Break the mold: use the defined custom fonts, sharp corners, and high-contrast tactical styling.",
+    "Never use generic AI emojis (🤖💭).",
+    "Every interaction needs micro-animations - hover states, click scales.",
+    "Do NOT center align the app container. Keep data left-aligned or tabularly aligned.",
+    "Use sonner for toast notifications (import from shadcn/ui).",
+    "If shadcn components are used, customize them to match the sharp, tactical dark theme (remove heavy radiuses, update ring colors)."
+  ]
+}

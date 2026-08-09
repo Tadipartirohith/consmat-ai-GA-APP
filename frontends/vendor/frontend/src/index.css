@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    color-scheme: dark;
+}
+
+body {
+    margin: 0;
+    font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: #0f1216;
+    color: #ffffff;
+}
+
+code {
+    font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+::-webkit-scrollbar-track {
+    background: #0f1216;
+}
+::-webkit-scrollbar-thumb {
+    background: #2a323c;
+    border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #ff7a2f;
+}
+
+::selection {
+    background: #ff7a2f;
+    color: #0f1216;
+}
+
+@layer base {
+    * {
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+}

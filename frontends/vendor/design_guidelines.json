@@ -1,0 +1,67 @@
+{
+  "theme": "dark",
+  "archetype": "The Performance Pro / High-Contrast Tactical",
+  "typography": {
+    "headings": {
+      "font_family": "Manrope",
+      "instruction": "Use tight tracking (tracking-tight). Import via Google Fonts."
+    },
+    "body": {
+      "font_family": "IBM Plex Sans",
+      "instruction": "Crucial for legibility of numeric data (INR, stock, ratings). Import via Google Fonts."
+    }
+  },
+  "colors": {
+    "background": "#0f1216",
+    "panels": "#171c22",
+    "accent": "#ff7a2f",
+    "text_primary": "#ffffff",
+    "text_secondary": "#94a3b8",
+    "border_subtle": "rgba(255, 255, 255, 0.1)",
+    "low_stock_warning": "#ef4444",
+    "instructions_to_main_agent": "CRITICAL: You MUST use exactly these hex codes. Background must be #0f1216. All card/surface backgrounds must be #171c22. The primary accent for buttons, active states, and star ratings must be #ff7a2f."
+  },
+  "visual_enhancers": {
+    "borders": "1px solid border-white/10 for all panels. Use sharp 1px borders to separate panels from the background.",
+    "radius": "rounded-lg (8px) for cards, rounded-md for buttons/inputs.",
+    "hover_states": "Interactive elements must have distinct hover states (e.g., hover:bg-white/5 or hover:brightness-110 for accent).",
+    "transparency": "DO NOT use fully transparent backgrounds for overlays, dropdowns, or sticky headers. Use backdrop-blur-xl bg-[#171c22]/90."
+  },
+  "layouts": {
+    "general": "Mobile-first. Use full-width stack on mobile, expanding to dense grids on desktop.",
+    "dashboard_grid": "Bento Grid Protocol: High Density Grid (Mode B). Tight gaps (gap-4 or gap-6).",
+    "panels": "Generous padding inside panels (p-4 to p-6).",
+    "table": "Deep dense table view for inventory on desktop. Allow horizontal scroll on mobile to keep data intact."
+  },
+  "components": {
+    "login_register": "Clean centralized card on #0f1216 background. Inputs should have bg-[#0f1216] (recessed) and border-white/10.",
+    "profile_header": "Showcase rating prominently (lucide-react Star icon, fill='#ff7a2f', text='#ff7a2f'). Display vendor name and location cleanly.",
+    "inventory_table": "Editable row inputs must have distinct focus rings (focus:ring-1 focus:ring-[#ff7a2f]). Explicitly show INR ₹ format (e.g. ₹ 450).",
+    "low_stock_flag": "Highlight the low stock cell explicitly with text-[#ef4444] and a subtle red background (bg-[#ef4444]/10).",
+    "orders_list": "Clean list view. Use pills/badges for order status.",
+    "avatar": "Use Shadcn Avatar with initials (e.g. text-[#ff7a2f] bg-[#ff7a2f]/10)."
+  },
+  "motion": {
+    "transitions": "Use specific transitions (e.g., transition-colors duration-200). NEVER use transition-all.",
+    "entrance": "Staggered fade-in and slight slide-up (framer-motion) for dashboard panels."
+  },
+  "image_urls": {
+    "description": "Images for generic placements if needed (e.g., empty states or placeholder thumbnails)",
+    "inventory_boxes_1": "https://images.unsplash.com/photo-1743207820696-6ea16d63177f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzl8MHwxfHNlYXJjaHwyfHx3YXJlaG91c2UlMjBpbnZlbnRvcnklMjBib3hlcyUyMGRhcmt8ZW58MHx8fHwxNzg2MjIxNTQ1fDA&ixlib=rb-4.1.0&q=85",
+    "inventory_boxes_2": "https://images.unsplash.com/photo-1779153304203-e0d044f63e53?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzl8MHwxfHNlYXJjaHw0fHx3YXJlaG91c2UlMjBpbnZlbnRvcnklMjBib3hlcyUyMGRhcmt8ZW58MHx8fHwxNzg2MjIxNTQ1fDA&ixlib=rb-4.1.0&q=85"
+  },
+  "accessibility": {
+    "testing": "All interactive and key informational elements MUST include a data-testid attribute (e.g., data-testid='vendor-login-button').",
+    "contrast": "Ensure foreground text contrasts properly against #171c22 and #0f1216."
+  },
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "NEVER use generic placeholder services like via.placeholder.com. Use the provided image URLs.",
+    "Ensure the layout is highly responsive (mobile-first).",
+    "Do NOT use text-align: center globally in the App.",
+    "Use lucide-react for icons. Star ratings must use Lucide Star icons with fill active.",
+    "Create depth through layered design elements with z-index hierarchy and subtle 1px white/10 borders.",
+    "Add interactions to all buttons and inputs (focus, hover).",
+    "Render INR ₹ explicitly for all price data.",
+    "Do not build backend or business logic; rely entirely on the API."
+  ]
+}

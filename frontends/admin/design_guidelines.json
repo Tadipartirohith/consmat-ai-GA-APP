@@ -1,0 +1,84 @@
+{
+  "theme": "dark",
+  "app_type": "dashboard",
+  "style": "Industrial B2B Admin Console",
+  "typography": {
+    "headings": {
+      "font_family": "Outfit",
+      "weights": ["500", "600", "700"],
+      "classes": "font-sans tracking-tight"
+    },
+    "body": {
+      "font_family": "IBM Plex Sans",
+      "weights": ["400", "500"],
+      "classes": "font-sans"
+    },
+    "mono": {
+      "font_family": "JetBrains Mono",
+      "weights": ["400", "500"]
+    },
+    "instructions": "Import Outfit and IBM Plex Sans from Google Fonts. Do NOT use Inter, Roboto, or Space Grotesk. Headings must use tight tracking. Body text should be readable for high data density."
+  },
+  "colors": {
+    "background": "#0f1216",
+    "panels": "#171c22",
+    "primary_accent": "#ff7a2f",
+    "text_main": "#f8fafc",
+    "text_muted": "#8b949e",
+    "border": "#272e38",
+    "success": "#16a34a",
+    "warning": "#eab308",
+    "danger": "#dc2626",
+    "instructions": "Use CSS variables for theme setup. Panels must not use shadows; rely on borders and background lightness for elevation. Ensure contrast ratio for text is at least 4.5:1. Primary accent (#ff7a2f) should be used for CTAs and active states."
+  },
+  "grids_and_layouts": {
+    "spacing": "Dense and compact spacing (p-4 to p-6 for panels). Tight gaps (gap-4 or gap-6) for metrics.",
+    "border_radius": "Sharp or max 6px (rounded-md) for an industrial operational feel.",
+    "dashboard_grid": "High Density Grid. Base grid-cols-1 on mobile, md:grid-cols-2, lg:grid-cols-4. Summary cards take col-span-1.",
+    "app_shell": "Two-pane layout: Sidebar for navigation and main content area. Fixed sidebar on desktop, slide-over drawer on mobile.",
+    "instructions": "Use grid-cols-1 md:grid-cols-4 for the 4 stat tiles. Mobile-first layout."
+  },
+  "visual_enhancers": {
+    "surfaces": "Use Grid Borders style. Panels should have a flat background (#171c22) and a 1px subtle border (#272e38). No shadows.",
+    "icons": "lucide-react (already installed). Use solid or regular variations.",
+    "interactions": "Hover states must lighten the panel/button slightly or change text color. Focus states must have an orange (#ff7a2f) ring. Use framer-motion for micro-interactions (e.g., slight scale down on button press).",
+    "instructions": "Maintain high data density. Operational screens should look tactical. Tables should have clear row separation and status badges."
+  },
+  "components": {
+    "cards": "Use standard HTML/Tailwind divs with bg-[#171c22] and border-[#272e38] instead of generic Shadcn cards if they force shadows.",
+    "tables": "Use Shadcn Table. Dense rows. Server-side pagination and actions per row. 'Approve KYC' should be a distinctive button.",
+    "forms": "Use Shadcn Form, Input, Select. Logistics-rules form should dynamically render fields.",
+    "buttons": "Shadcn Button. Primary variant uses #ff7a2f. Pill-shaped or slight rounding (rounded-md).",
+    "toasts": "Use Sonner for toast notifications on success/error of API calls."
+  },
+  "accessibility": {
+    "contrast": "Text must meet WCAG AA standards.",
+    "testing": "All interactive and key informational elements MUST include a 'data-testid' attribute (e.g., data-testid='login-submit-button', data-testid='approve-kyc-button')."
+  },
+  "instructions_to_main_agent": [
+    "You are building the frontend that consumes an EXISTING REST backend.",
+    "Do NOT build any backend or business logic.",
+    "Auth is JWT bearer from POST /api/v1/auth/login. Store and send Authorization: Bearer <token>.",
+    "Follow the E1 Anti-AI Designer rules: Avoid generic UI, no simplistic gradients.",
+    "Update tailwind.config.js to extend colors with the provided exact hex codes.",
+    "Use standard fetch or axios for API calls. Use Sonner for toasts.",
+    "Render the 4 stat tiles from GET /admin/metrics.",
+    "Render the vendor table from GET /admin/vendors. Include the 'Approve KYC' button calling POST /admin/vendors/{id}/approve.",
+    "Render recent orders from GET /admin/orders.",
+    "Render a logistics-rules form bound to GET/PUT /admin/logistics-config.",
+    "Implement mobile-first responsive design.",
+    "Apply Industrial B2B aesthetic: crisp borders, dense data tables, clear status labels, minimal radius."
+  ],
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "Do not make generic centered layouts, simplistic gradients, and uniform styling.",
+    "Create depth through layered design elements with z-index hierarchy and subtle borders.",
+    "You MUST NOT apply universal transition (e.g., transition: all). Add transitions for specific interactive elements.",
+    "You MUST NOT center align the app container. Do not add `.App { text-align: center; }` in CSS.",
+    "Always use modern button styles (rounded-md) with interaction animations & color relevant to the app style.",
+    "NEVER use AI assistant Emoji characters (🤖🧠💭💡🔮🎯) for icons.",
+    "Every interaction needs micro-animations (hover states, transitions).",
+    "Subtle grain textures or noise overlays can be used minimally.",
+    "Use pre-existing components from src/components/ui.",
+    "All interactive and key informational elements MUST include a `data-testid` attribute for robust automated testing."
+  ]
+}
