@@ -1,308 +1,162 @@
-# Consmat AI — Construction-Materials Marketplace (Full Platform)
+# Consmat AI, a construction materials marketplace
 
-An AI procurement matchmaker for construction materials, built for the
-**SVR Group / S3 Datacom** "Consmat AI" concept. A buyer describes what they
-need in plain language; the platform converts it into a precise material spec,
-finds every vendor who can supply it, adds the real delivery cost from each
-vendor's warehouse to the buyer's site, and returns a ranked list where **the
-cheapest option that still clears a quality bar wins** — then lets the buyer
-**acquire the whole bill of materials in one shot**.
+Consmat AI makes buying construction materials simple. A buyer types what they need in plain words, something like "everything for a 1500 sqft house in Medchal", and the app works out the exact materials and quantities, finds every vendor who can supply them, adds the real delivery cost from each vendor's warehouse to the buyer's site, and hands back a ranked list where the cheapest option that still meets a quality bar comes out on top. From there the buyer can acquire the whole list in a single tap.
 
-This repository contains the **entire working platform**: one backend API plus
-four role-based front-ends, wired together and runnable with a single command.
+This repository holds the complete, working platform. There is one backend and four apps, and you can bring all of it up with a single command.
 
----
+## What you get
 
-## 1. What's inside
+Four apps sit on top of one shared backend.
 
-Four role-specific apps over **one shared backend**:
+The Buyer app is for homebuilders, contractors and developers. They browse the catalog, chat with the AI, or estimate materials from a plan, then check out and track the order.
 
-| App | Who uses it | What it does |
-|---|---|---|
-| 🛒 **Buyer** | Homebuilders, contractors, developers | Shop the catalog, **chat with the AI** ("everything for a 1500 sqft house in Medchal"), or estimate from a plan → cart → pay → track. |
-| 🏭 **Vendor** | Suppliers / traders / manufacturers | Onboarding + KYC, manage price & stock (auto-decrements on sale), see incoming orders. |
-| 🛡️ **Admin** | Consmat HQ | KYC approvals, GMV/analytics, vendor management, logistics-rule config. |
-| 🚚 **Operator** | Hub & spoke dispatch staff | Consolidate multi-vendor orders into one delivery, dispatch, track network stock, reorder. |
+The Vendor app is for suppliers and manufacturers. They sign up, clear KYC, manage their prices and stock (which drops on its own whenever a sale happens), and watch orders come in.
 
-The heart of the product is the **AI single-shot buyer flow**: describe a whole
-project in one message and get the complete, priced bill of materials with a
-grand total and a one-tap **"acquire everything"** action.
+The Admin app is the control room for Consmat HQ. It covers KYC approvals, GMV and analytics, vendor management, and the logistics pricing rules.
 
----
+The Operator app is for the hub and spoke dispatch team. They fold several vendors' items into one delivery, send it out, keep an eye on stock across the network, and reorder when something runs low.
 
-## 2. Architecture
+The part that really sets it apart is the buyer chat. Describe a whole project in one sentence and you get the full bill of materials, already priced, with a grand total and a one tap way to buy the lot.
 
-```
-  Browser
-    │  (each app is its own origin, e.g. http://localhost:8080)
-    ▼
-┌─────────────────────────────────────────────┐
-│  nginx (per front-end container)             │
-│   • serves the prebuilt React SPA            │
-│   • proxies  /api/*  ──────────────┐         │
-└────────────────────────────────────┼─────────┘
-                                     ▼
-                        ┌──────────────────────────┐
-                        │  backend (FastAPI)        │
-                        │   • auth (JWT, roles)     │
-                        │   • pricing/ranking engine│  ◄── pure, deterministic
-                        │   • estimator + optimizer │
-                        │   • AI chat (LLM-pluggable)│
-                        │   • in-memory store       │  ◄── seeded from config.yaml
-                        └──────────────────────────┘
-```
+## How it fits together
 
-- **Same-origin by design.** The browser only talks to a front-end origin;
-  that app's nginx proxies `/api` to the backend on the internal Docker network.
-  No CORS, and **no API URL to configure**.
-- **Deterministic value engine.** Ranking, landed-cost, estimator and the
-  multi-vendor optimizer are pure functions — auditable and identical every run.
-  The LLM only *understands* language; it never invents prices.
-- **In-memory store seeded from `config.yaml`.** Restarting the backend resets
-  to a known, repeatable state — ideal for testing/demos. Swap in a database
-  later behind the same store interface for persistence.
+The browser only ever talks to one of the app addresses, for example http://localhost:8080 for the buyer. Each app is served by nginx, and when the app needs data, nginx quietly forwards those /api requests to the backend on the internal network. In other words, the browser talks to the app, and the app talks to the backend. You never have to tell the front end a separate backend address, and there is no cross origin setup to fuss with.
 
----
+The backend does the real work: login and roles, the pricing and ranking engine, the estimator, the multi vendor optimizer, and the AI chat. The pricing math is deterministic, so the same request always gives the same answer. When you switch on a language model, it only reads and understands the sentence, and it never invents a price. Every number comes from the backend.
 
-## 3. Repository layout
+The backend keeps its data in memory, seeded from a single config file. Restarting it resets everything to a known state, which is handy for testing and demos. If you want lasting storage later, you can slot a database in behind the same interface without touching the rest.
+
+## What is in the repo
 
 ```
 ConsmatAI-app/
-├─ START-HERE.bat / STOP.bat      # Windows one-click launcher / stop
-├─ start.sh / stop.sh             # macOS / Linux launcher / stop
-├─ docker-compose.yml             # backend + 4 front-ends
-├─ .env.example                   # host ports, JWT secret, AI keys
-├─ serve.py                       # no-Docker static+proxy server (fallback)
-├─ backend/
-│  ├─ config.yaml                 # ALL variable data (edit here)
-│  ├─ requirements.txt  Dockerfile
-│  └─ app/
-│     ├─ main.py                  # FastAPI app
-│     ├─ config.py store.py       # config loader + in-memory store
-│     ├─ domain.py                # pure pricing / ranking / estimator / optimizer
-│     ├─ auth.py serializers.py
-│     └─ routers/                 # common, buyer, vendor, admin, operator
-└─ frontends/
-   ├─ buyer/ vendor/ admin/ dispatch/
-   │   ├─ frontend/build/         # PREBUILT static site (served by nginx)
-   │   ├─ frontend/src ...        # React source (fixed & buildable)
-   │   ├─ Dockerfile  nginx.conf  # nginx: serve SPA + proxy /api -> backend
+  START-HERE.bat, STOP.bat      Windows one click launcher and stop
+  start.sh, stop.sh             the same for macOS and Linux
+  docker-compose.yml            backend plus the four apps
+  .env.example                  host ports, JWT secret, optional AI keys
+  serve.py                      a no Docker static and proxy server, as a fallback
+  backend/
+    config.yaml                 all the data you might change, in one place
+    requirements.txt, Dockerfile
+    app/
+      main.py                   the FastAPI app
+      config.py, store.py       config loader and in memory store
+      domain.py                 the pure pricing, ranking, estimator and optimizer math
+      auth.py, serializers.py
+      routers/                  common, buyer, vendor, admin, operator
+  frontends/
+    buyer, vendor, admin, dispatch
+      frontend/build            the prebuilt site that nginx serves
+      frontend/src              the React source, fixed and buildable
+      Dockerfile, nginx.conf    nginx serves the site and forwards /api to the backend
 ```
 
-> **Why builds are committed:** the front-end images are nginx-only and serve
-> `frontend/build`, so `docker compose up` is just "copy files + start nginx" —
-> fast, no npm/webpack in Docker. To rebuild from source, see §9.
+The finished sites are committed on purpose, so the front end images are nginx only and "docker compose up" is really just copy the files and start nginx. That keeps startup fast, with no npm or webpack running inside Docker. If you want to rebuild from source, there is a short section on that below.
 
----
+## Before you start
 
-## 4. Prerequisites
+You need Docker Desktop on Windows or Mac, or Docker Engine with Compose v2 on Linux, installed and running. Around 2 GB of free disk and memory is plenty. That is the only requirement for the Docker route, and you do not need Node or Python on your machine.
 
-- **Docker Desktop** (Windows/macOS) or Docker Engine + Compose v2 (Linux),
-  installed and **running**.
-- ~2 GB free disk and RAM for the containers. That's it — no Node or Python
-  needed on the host for the Docker path.
+## Running it
 
----
+On Windows, the easy way is two steps. Start Docker Desktop and wait until it says running, then double click START-HERE.bat. It checks Docker, builds and starts everything, waits for the health check, prints the addresses, and opens the four apps in your browser. To stop, double click STOP.bat.
 
-## 5. Quick start
+On any operating system, from a terminal, one line does it:
 
-### Windows — one click
-1. Make sure **Docker Desktop is running**.
-2. Double-click **`START-HERE.bat`**.
-
-It checks Docker, builds + starts everything, waits for the health check, prints
-the URLs, and opens all four apps in your browser. Stop with **`STOP.bat`**.
-
-### Any OS — command line
 ```bash
 docker compose up -d --build
 ```
 
-Then open:
+Then open the apps. The buyer is at http://localhost:8080, the vendor at http://localhost:8081, the admin at http://localhost:8082, and the operator at http://localhost:8083. The API and its Swagger docs are at http://localhost:3000/docs. Sign in with buyer@consmat.com, vendor@consmat.com, admin@consmat.com, or operator@consmat.in, and the password for every demo account is consmat123.
 
-| App | URL | Login (password `consmat123`) |
-|---|---|---|
-| 🛒 Buyer | http://localhost:8080 | `buyer@consmat.com` |
-| 🏭 Vendor | http://localhost:8081 | `vendor@consmat.com` |
-| 🛡️ Admin | http://localhost:8082 | `admin@consmat.com` |
-| 🚚 Operator | http://localhost:8083 | `operator@consmat.in` |
-| ⚙️ API + Swagger | http://localhost:3000/docs | — |
+To stop, run docker compose down.
 
-Stop: `docker compose down`.
+One thing worth remembering: the backend code is baked into its image, so after you pull new changes, bring it up with docker compose up -d --build so the new code is actually picked up.
 
-> The `--build` flag matters: the backend code is baked into its image, so after
-> pulling changes always run `docker compose up -d --build`.
+## What the setup does, step by step
 
----
+You do not have to run any of this by hand, the launchers handle it, but here is what happens under the hood.
 
-## 6. Infrastructure setup — what the scripts do
+The launcher, START-HERE.bat on Windows or start.sh on Mac and Linux, first checks that Docker is installed and running, and stops with a clear message if it is not. On the first run it creates a .env file from .env.example, which holds the host ports, the JWT secret, and the optional AI keys. It then runs docker compose up -d --build, which builds five images and starts them: the backend, a small Python service on port 3000, and the four apps, each an nginx server that serves the prebuilt site and forwards /api to the backend. Finally it waits until http://localhost:3000/health reports ok, and prints the addresses and demo logins.
 
-You don't have to run these by hand (the launchers do), but here's exactly what
-happens, step by step:
+If you would rather do it yourself, the equivalent commands are:
 
-**`START-HERE.bat`** (Windows) / **`start.sh`** (macOS/Linux):
-1. Verify Docker is installed and the daemon is running; bail out with a clear
-   message if not.
-2. Create `.env` from `.env.example` on first run (host ports, JWT secret, AI keys).
-3. `docker compose up -d --build` — builds five images and starts the stack:
-   - `backend` → `pip install` + `uvicorn` on port 3000.
-   - `buyer/vendor/admin/dispatch` → nginx serving the prebuilt SPA + proxying `/api`.
-4. Poll `http://localhost:3000/health` until it returns `{"status":"ok"}`.
-5. Print the URLs + demo logins (Windows also opens the apps in the browser).
-
-**`docker-compose.yml`** wires it together: the backend publishes `:3000`; each
-front-end publishes its port (`8080–8083`) and `depends_on` the backend. Because
-nginx proxies `/api` to the `backend` service name on the internal network,
-there is no cross-origin config and the apps work identically on localhost or a
-LAN IP.
-
-Manual equivalents:
 ```bash
-cp .env.example .env             # first run only
-docker compose up -d --build     # build + start
-docker compose logs -f backend   # watch logs
-docker compose restart backend   # apply a config.yaml change
-docker compose down              # stop (add -v is not needed; state is in-memory)
+cp .env.example .env            # first run only
+docker compose up -d --build    # build and start
+docker compose logs -f backend  # watch the backend logs
+docker compose restart backend  # apply a config.yaml change
+docker compose down             # stop
 ```
 
----
+## Everything you might change lives in one file
 
-## 7. Configuration — everything variable is in one file
+Open backend/config.yaml. That one file holds the warehouses, the delivery locations, the material catalog, the vendors with their prices and stock, the pricing engine settings, the logistics rules, the low stock thresholds, the demo accounts, how many demo orders to create on start, and the ports. Edit it, run docker compose restart backend, and the changes take effect. None of the business data is buried in the code.
 
-**`backend/config.yaml`** is the single source of all tweakable data:
+The handful of infrastructure settings, meaning the host ports, the JWT secret, and the AI keys described below, live in .env.
 
-- **Warehouses** (Consmat hub + Hyderabad spokes, with lat/lng)
-- **Delivery locations** (buyer sites)
-- **Material catalog** (name, category, unit, grade, thumb-rule per-sqft, image)
-- **Vendors** — tier, quality rating, ISI flag, credit terms, city, GST, serving
-  warehouse, KYC state, and per-material **price + stock**
-- **Pricing engine** — `rate_per_km`, `handling`, `quality_gate`, per-material
-  `load_factor`
-- **Logistics rules** shown on the Admin screen (editable at runtime too)
-- **Low-stock thresholds** by unit
-- **Demo accounts** and how many demo orders to seed on boot
-- **Ports** (reference)
+## The buyer chat, the heart of the app
 
-Edit it, then `docker compose restart backend` to apply. Nothing business-related
-is hard-coded in the app.
+Type the whole job in one message and the AI lists it and prices it. For example, "everything for a 1500 sqft 2 floor house in Medchal, on a budget" comes back as a full list of cement, TMT steel, river sand, aggregate and bricks, each with a vendor and a price, plus a grand total, and a one tap Add all to cart that buys the lot.
 
-Infra-only knobs live in **`.env`** (host ports, `JWT_SECRET`, and the AI keys
-below).
+It understands whole project descriptions, picking up the area, the number of floors from phrases like "2 floor" or "G+1", the construction grade, and whether there are brick walls. It also handles explicit shopping lists like "50 bags cement, 3 t steel, 5000 bricks", the delivery town, and whether you care more about price or quality.
 
----
-
-## 8. The AI "single-shot" buyer flow
-
-Describe the whole job in one message; the AI lists **and** prices everything,
-and returns a one-tap "acquire all" payload.
-
-Example (real output):
-
-> **You:** "everything for a 1500 sqft 2-floor house in Medchal, on a budget"
-> **Consmat AI:** For a **3,000 sq ft standard build (2 floors)**, here's
-> everything you need — each from its cheapest reliable vendor, delivery included:
-> • Cement: 1200 bags — Sri Balaji Traders (₹468,746)
-> • TMT Steel: 12.0 tonnes — UltraBuild Wholesale (₹768,115)
-> • River Sand: 244.8 tonnes — Godavari Sand Co. (₹269,058)
-> • Aggregate 20mm: 171.0 tonnes — Metro Steel & Cement (₹171,646)
-> • Bricks: 24,000 pcs — Kakatiya Bricks Mfg. (₹176,413)
-> **Grand total: ₹1,853,978 delivered. Tap "Add all to cart" to acquire it all.**
-
-It understands: whole-project descriptions (area, floors incl. "2-floor" / "G+1",
-construction grade, brick/no-brick), explicit item lists ("50 bags cement, 3 t
-steel, 5000 bricks"), location, and cheap-vs-quality intent.
-
-### Enable a real LLM (optional)
-By default the AI uses a **deterministic parser** — no key, no cost, fully
-offline. To use a real model for messier language, set these in `.env`:
+Turning on a real language model is optional. Out of the box the chat uses a built in parser, so it needs no key, costs nothing, and works with no internet at all. If you want a model to handle messier wording, set these in .env:
 
 ```
-AI_PROVIDER=openai        # or: anthropic
-AI_API_KEY=sk-...         # your key
-AI_MODEL=gpt-4o-mini      # or e.g. claude-3-5-haiku-latest
+AI_PROVIDER=openai        # or anthropic
+AI_API_KEY=your-key
+AI_MODEL=gpt-4o-mini      # or for example claude-3-5-haiku-latest
 ```
-then `docker compose up -d`. The LLM only extracts structure from the message;
-**all prices/stock still come from the backend**, so results stay trustworthy.
 
----
+then run docker compose up -d. Even with a model switched on, it only reads the sentence. Every price and stock figure still comes from the backend, so the answers stay honest.
 
-## 9. Rebuilding the front-ends from source
+## Rebuilding the apps from source
 
-The committed `frontend/build` dirs let the stack run without a Node toolchain.
-To change front-end code and rebuild:
+The finished sites are committed so the stack runs straight after cloning, with no Node toolchain needed. If you change front end code and want to rebuild one app:
 
 ```bash
 cd frontends/buyer/frontend
 npm install --legacy-peer-deps
 CI=false REACT_APP_API_BASE_URL="" REACT_APP_BACKEND_URL="" npm run build
 ```
-(Repeat per app.) The empty API base makes the app call `/api` on its own origin,
-which nginx proxies to the backend. Then `docker compose up -d --build`.
 
----
+Do the same for the other apps, then run docker compose up -d --build. Leaving the API address blank makes the app call /api on its own address, which nginx forwards to the backend.
 
-## 10. API overview
+## The API in brief
 
-Base: `http://localhost:3000/api/v1` (full Swagger at `/docs`). Highlights:
+The base address is http://localhost:3000/api/v1, with full docs at /docs. The main endpoints are:
 
-- **Auth:** `POST /auth/login`, `GET /auth/me`
-- **Buyer:** `GET /materials`, `POST /match`, `POST /estimate`, `POST /optimize`,
-  `POST /ai/chat`, `POST /orders/checkout`, `GET /orders`
-- **Vendor:** `POST /vendors/register`, `GET /vendors/me`,
-  `POST|PUT /vendors/me/offers`, `GET /vendors/me/orders`,
-  `PUT /vendors/me/orders/{id}`
-- **Admin:** `GET /admin/metrics`, `GET /admin/orders`, `GET /admin/vendors`,
-  `GET /admin/vendors/{id}`, `POST /admin/vendors/{id}/approve`,
-  `POST /admin/vendors/bulk-approve`, `GET|PUT /admin/logistics-config`
-- **Operator:** `GET /operator/dispatch-queue`, `POST /operator/dispatch/{id}`,
-  `POST /operator/deliver/{id}`, `GET /operator/network-stock`,
-  `POST /operator/reorder`, `GET|POST|DELETE /operator/views`
+Auth: POST /auth/login, GET /auth/me.
 
----
+Buyer: GET /materials, POST /match, POST /estimate, POST /optimize, POST /ai/chat, POST /orders/checkout, GET /orders.
 
-## 11. Fixes applied to the Emergent front-ends
+Vendor: POST /vendors/register, GET /vendors/me, POST and PUT /vendors/me/offers, GET /vendors/me/orders, PUT /vendors/me/orders/{id}.
 
-The four apps were generated with Emergent and shipped with a few issues that
-blocked a clean, self-hosted build. All are fixed here:
+Admin: GET /admin/metrics, GET /admin/orders, GET /admin/vendors, GET /admin/vendors/{id}, POST /admin/vendors/{id}/approve, POST /admin/vendors/bulk-approve, GET and PUT /admin/logistics-config.
 
-1. Removed the private `@emergentbase/visual-edits` dependency (hosted on
-   Emergent's servers, 403 elsewhere) — it blocked `npm install`.
-2. Pinned `ajv@8` to fix the CRA5 `Cannot find module 'ajv/dist/compile/codegen'`
-   build crash.
-3. Prebuilt each app with a **relative** API base so it works behind the nginx
-   proxy (no hard-coded backend URL).
-4. Reshaped the Docker images to **nginx-only** (serve prebuilt static + proxy
-   `/api`) so `docker compose up` never runs npm/webpack in a container.
+Operator: GET /operator/dispatch-queue, POST /operator/dispatch/{id}, POST /operator/deliver/{id}, GET /operator/network-stock, POST /operator/reorder, and GET, POST and DELETE /operator/views.
 
-The unfinished `backend/` folders inside the original Emergent repos are **not
-used** — this repo's single `backend/` implements the exact API every front-end
-expects.
+## A note on the front end apps
 
----
+The four apps were generated with Emergent, and they arrived with a couple of things that stopped a clean self hosted build. All of them are sorted out here. The private @emergentbase/visual-edits dependency, which returns a 403 outside Emergent and blocked npm install, has been removed, and the build copes gracefully without it. The ajv version that caused the "Cannot find module 'ajv/dist/compile/codegen'" crash on Create React App 5 is pinned to version 8. Each app was rebuilt with a relative API address so it works behind the nginx forward, with no hard coded backend URL. And the Docker images were trimmed down to nginx only, so bringing the stack up copies the finished site and starts nginx, instead of compiling React inside a container. The half finished backend folders that shipped inside the original Emergent repos are not used, because this repo's single backend already provides exactly what every app expects.
 
-## 12. Troubleshooting
+## If something goes wrong
 
-- **"Docker daemon is not running"** — start Docker Desktop, wait until it says
-  *Running*, re-run.
-- **Port already in use** — change the port in `.env`
-  (`BACKEND_PORT`/`BUYER_PORT`/`VENDOR_PORT`/`ADMIN_PORT`/`DISPATCH_PORT`) and
-  `docker compose up -d`.
-- **Backend healthy but an app shows API errors** — the app calls `/api` on its
-  own origin; make sure the `backend` container is up (`docker compose ps`) and
-  healthy (`curl http://localhost:3000/health`).
-- **Changed `config.yaml` but no effect** — `docker compose restart backend`.
-- **Changed backend code but no effect** — rebuild: `docker compose up -d --build`.
+If you see "Docker daemon is not running", start Docker Desktop, wait until it says running, and try again.
 
----
+If a port is already taken, change it in .env, using BACKEND_PORT, BUYER_PORT, VENDOR_PORT, ADMIN_PORT or DISPATCH_PORT, and run docker compose up -d.
 
-## 13. Tech stack
+If the backend is healthy but an app shows API errors, check that the backend container is up with docker compose ps and healthy with curl http://localhost:3000/health.
 
-- **Backend:** Python 3.11, FastAPI, Uvicorn, PyJWT, bcrypt, PyYAML (in-memory store).
-- **Front-ends:** React (CRA + CRACO), Tailwind, Radix UI, served by nginx.
-- **Infra:** Docker + Docker Compose. Optional real LLM via OpenAI/Anthropic.
+If you changed config.yaml and nothing seems different, restart the backend with docker compose restart backend.
 
----
+If you changed backend code and nothing seems different, rebuild with docker compose up -d --build.
 
-## 14. License
+## Built with
 
-MIT — see `LICENSE`.
+The backend is Python 3.11 with FastAPI and Uvicorn, using PyJWT and bcrypt for auth and PyYAML for config, keeping its data in memory. The apps are React, built with Create React App and CRACO, styled with Tailwind and Radix UI, and served by nginx. The whole thing runs on Docker and Docker Compose. A real language model from OpenAI or Anthropic is optional.
+
+## License
+
+MIT. See the LICENSE file.
