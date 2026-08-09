@@ -95,6 +95,28 @@ Open backend/config.yaml. That one file holds the warehouses, the delivery locat
 
 The handful of infrastructure settings, meaning the host ports, the JWT secret, and the AI keys described below, live in .env.
 
+## Configuration for the ops team (before testing or going live)
+
+The app runs out of the box with safe local defaults, but before you point it at real vendors, take real payments, or put it on the internet, there are a few things to review. Most of the switches sit in backend/config.yaml under a clearly marked "GO-LIVE / OPS CONFIGURATION" block near the top of the file, and every secret value goes in .env. Here is what to change and where.
+
+Endpoints and domains. For local runs the browser talks to each app on localhost and nginx forwards /api to the backend, so there is nothing to set. When you deploy behind real domains, you decide how the apps reach the backend. The simplest option is to keep the nginx forward and point it at your backend by editing the proxy target in each app's frontends/<app>/nginx.conf, the line that reads proxy_pass http://backend:3000. If instead you host the backend on its own domain, set deployment.public_api_url in config.yaml to that URL and rebuild the front ends with that address (see "Rebuilding the apps from source"). Either way, update deployment.frontend_urls to your real app addresses.
+
+CORS. Local uses deployment.allowed_origins set to ["*"], which is fine for testing. Before going live, replace it with the exact front end domains, for example ["https://buyer.consmat.yourcompany.com", "https://admin.consmat.yourcompany.com"]. The backend applies this value on start, so a backend restart is all it takes.
+
+Security. Change app.jwt_secret in config.yaml, or better, set JWT_SECRET in .env so it never lands in git. Change demo_password and remove or replace the demo_users before anyone outside the team can reach the app. If you want shorter sessions, lower access_token_ttl_min from its generous demo value.
+
+Payment gateway. Out of the box payment is a stub, which means checkout records the order but does not charge anything. That is exactly what you want while testing. To take real money, set payments.provider in config.yaml to your gateway (razorpay, stripe, payu or cashfree), set payments.enabled to true and pick the currency, put the keys in .env (PAYMENT_KEY_ID, PAYMENT_KEY_SECRET, PAYMENT_WEBHOOK_SECRET), and wire the gateway call into the checkout handler in backend/app/routers/buyer.py. That handler is where the order is created, so it is the single place to add the charge and the webhook confirmation. Until you do this, treat every order as unpaid.
+
+Real road distances. Delivery cost uses a straight line estimate by default, which is fine for a demo. For accurate road distances, set logistics_engine.provider to osrm in config.yaml and point OSRM_URL in .env at your OSRM service.
+
+Notifications. Order and dispatch messages over WhatsApp or SMS are off by default. To turn them on, set notifications.provider and notifications.enabled in config.yaml, add the provider key to .env, and wire the adapter.
+
+Persistence. The demo keeps everything in memory and resets when the backend restarts, which is deliberate so tests always start from a known state. Before production, set persistence.mode to postgres in config.yaml, point DATABASE_URL in .env at your database, and move the store to it behind the same interface. Nothing else in the app has to change, because the rest of the code only talks to the store, not the database directly.
+
+Business data. Replace the sample warehouses, materials and vendors in config.yaml with your real catalog and suppliers, and set real prices, stock, and the pricing and logistics rules. It is the same file, so one edit and a backend restart puts your real data live.
+
+A quick pre go live checklist: change the JWT secret, remove the demo accounts, lock down CORS, set your real domains, switch the payment provider on and wire it, move to a database, and load your real catalog and vendors. Once those are done, you are ready for a real test.
+
 ## The buyer chat, the heart of the app
 
 Type the whole job in one message and the AI lists it and prices it. For example, "everything for a 1500 sqft 2 floor house in Medchal, on a budget" comes back as a full list of cement, TMT steel, river sand, aggregate and bricks, each with a vendor and a price, plus a grand total, and a one tap Add all to cart that buys the lot.

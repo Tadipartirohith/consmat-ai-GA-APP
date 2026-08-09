@@ -5,6 +5,61 @@
 # The backend loads this at startup (hot-editable: restart the api container).
 # =============================================================================
 
+# =============================================================================
+# GO-LIVE / OPS CONFIGURATION
+# These are the settings the ops team should review before testing with real
+# data or going to production. Put SECRET values (API keys, gateway secrets)
+# in the .env file, not here. This file is committed to git; .env is not.
+# See the README section "Configuration for the ops team" for the full walk-through.
+# =============================================================================
+
+deployment:
+  # Public base URL of the backend API as seen by the browser.
+  # Local default is same-origin through the nginx /api proxy, so leave blank.
+  # For a real deployment behind domains, set your API URL, e.g.
+  #   https://api.consmat.yourcompany.com
+  public_api_url: ""
+  # Origins allowed to call the API (CORS). "*" is fine for local testing; before
+  # going live, replace with the exact front-end domains. This value IS applied.
+  allowed_origins: ["*"]
+  # Public URLs of the four front-ends (used in links / notifications if enabled).
+  frontend_urls:
+    buyer:    "http://localhost:8080"
+    vendor:   "http://localhost:8081"
+    admin:    "http://localhost:8082"
+    operator: "http://localhost:8083"
+
+payments:
+  # By default payment is a STUB: checkout records the order without charging.
+  # To take real money: set provider + enabled, put the secret keys in .env, and
+  # wire the gateway adapter in backend/app/routers/buyer.py (checkout). See the
+  # README "Configuration for the ops team -> Payment gateway".
+  provider: "mock"            # mock | razorpay | stripe | payu | cashfree
+  enabled: false
+  currency: "INR"
+  # Secrets live in .env; these name the variables the adapter should read:
+  key_id_env: "PAYMENT_KEY_ID"
+  key_secret_env: "PAYMENT_KEY_SECRET"
+  webhook_secret_env: "PAYMENT_WEBHOOK_SECRET"
+
+logistics_engine:
+  # How road distance is computed. "haversine" needs nothing external and is the
+  # default. Switch to "osrm" and set OSRM_URL in .env for real road distances.
+  provider: "haversine"       # haversine | osrm
+  osrm_url_env: "OSRM_URL"
+
+notifications:
+  # Order / dispatch notifications (WhatsApp / SMS). Off by default. To enable,
+  # set provider + keys in .env and wire the adapter. See the README.
+  provider: "none"            # none | gupshup | msg91 | twilio
+  enabled: false
+
+persistence:
+  # The demo uses an in-memory store (resets on restart). Before production, move
+  # to a real database behind the same store interface (see README "Persistence").
+  mode: "memory"              # memory | postgres
+  database_url_env: "DATABASE_URL"
+
 app:
   name: "Consmat AI"
   api_prefix: "/api/v1"

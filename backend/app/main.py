@@ -18,7 +18,9 @@ PREFIX = _c["app"]["api_prefix"]
 
 app = FastAPI(title="Consmat AI — Unified API", version="1.0.0")
 
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
+# CORS: ops team locks this down for production via config.yaml -> deployment.allowed_origins
+_allowed_origins = (_c.get("deployment") or {}).get("allowed_origins") or ["*"]
+app.add_middleware(CORSMiddleware, allow_origins=_allowed_origins, allow_methods=["*"],
                    allow_headers=["*"], allow_credentials=False)
 
 for r in (common.router, buyer.router, vendor.router, admin.router, operator.router):
