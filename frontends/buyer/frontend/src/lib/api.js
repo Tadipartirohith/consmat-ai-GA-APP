@@ -78,4 +78,10 @@ export async function getOrders() {
   return data;
 }
 
+// ---- Live delivery tracking ----
+export async function getTracking(orderId) {
+  const { data } = await client.get(`/orders/${orderId}/tracking`);
+  return data; // { origin, dest, vehicle, progress, distance_km, remaining_km, eta_at, driver, ... }
+}
+
 export default client;

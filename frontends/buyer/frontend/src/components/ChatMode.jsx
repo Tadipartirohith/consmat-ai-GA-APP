@@ -4,19 +4,29 @@ import { useApp } from "@/context/AppContext";
 import { VendorCard } from "@/components/VendorCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Sparkles, Bot, User, ShoppingCart } from "lucide-react";
+import { Send, Sparkles, Bot, User, ShoppingCart, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+
+const CHAT_KEY = "consmat_chat_history";
+const GREETING = {
+  role: "assistant",
+  reply:
+    "Hi, I'm your Consmat procurement assistant. Tell me what you're building or what materials you need, and I'll price the best vendors for you.",
+  chips: ["Everything for a 1500 sqft house", "Cheapest cement near me", "TMT steel, 500 units"],
+};
 
 export function ChatMode() {
   const { location, priceQuality, addManyToCart } = useApp();
-  const [messages, setMessages] = useState([
-    {
-      role: "assistant",
-      reply:
-        "Hi! I'm your procurement assistant. Tell me what you're building or what materials you need, and I'll find the best vendors.",
-      chips: ["Steel for 2000 sq ft slab", "Cheapest cement near me", "TMT bars 500 units"],
-    },
-  ]);
+  // Persist the conversation so leaving and returning to the chat keeps history.
+  const [messages, setMessages] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(CHAT_KEY) || "null");
+      if (Array.isArray(saved) && saved.length) return saved;
+    } catch {
+      /* ignore malformed history */
+    }
+    return [GREETING];
+  });
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef(null);
@@ -25,6 +35,24 @@ export function ChatMode() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, loading]);
 
+  // Keep only the most recent exchanges so storage stays small.
+  useEffect(() => {
+    try {
+      localStorage.setItem(CHAT_KEY, JSON.stringify(messages.slice(-40)));
+    } catch {
+      /* storage full or unavailable */
+    }
+  }, [messages]);
+
+  const clearChat = () => {
+    setMessages([GREETING]);
+    try {
+      localStorage.removeItem(CHAT_KEY);
+    } catch {
+      /* ignore */
+    }
+  };
+
   const send = async (text) => {
     const msg = (text ?? input).trim();
     if (!msg || loading) return;
@@ -32,7 +60,10 @@ export function ChatMode() {
     setMessages((m) => [...m, { role: "user", reply: msg }]);
     setLoading(true);
     try {
-      const data = await aiChat({ message: msg, location, price_quality: priceQuality });
+      const history = messages
+        .slice(-8)
+        .map((x) => ({ role: x.role, content: x.reply }));
+      const data = await aiChat({ message: msg, location, price_quality: priceQuality, history });
       setMessages((m) => [
         ...m,
         {
@@ -73,6 +104,19 @@ export function ChatMode() {
 
   return (
     <div className="flex h-[calc(100vh-16rem)] min-h-[480px] flex-col rounded-xl border border-white/10 bg-[#171c22]">
+      <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5">
+        <span className="flex items-center gap-1.5 text-xs font-semibold text-white/50">
+          <Sparkles size={13} className="text-[#ff7a2f]" /> Procurement assistant
+        </span>
+        <button
+          data-testid="chat-clear-btn"
+          onClick={clearChat}
+          className="flex items-center gap-1 text-xs text-white/40 transition-colors hover:text-[#ff7a2f]"
+          title="Clear conversation"
+        >
+          <Trash2 size={13} /> Clear
+        </button>
+      </div>
       <div ref={scrollRef} className="flex-1 space-y-5 overflow-y-auto p-4 md:p-6" data-testid="chat-messages">
         {messages.map((m, i) => (
           <ChatBubble key={i} m={m} onChip={send} onAddAll={addAll} />
@@ -141,16 +185,21 @@ function ChatBubble({ m, onChip, onAddAll }) {
 
         {m.chips && m.chips.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
-            {m.chips.map((c, i) => (
-              <button
-                key={i}
-                data-testid={`chat-chip-${i}`}
-                onClick={() => onChip(typeof c === "string" ? c : c.label || c.text)}
-                className="rounded-full border border-[#ff7a2f]/30 bg-[#ff7a2f]/10 px-3 py-1 text-xs text-[#ff7a2f] transition-colors hover:bg-[#ff7a2f]/20"
-              >
-                {typeof c === "string" ? c : c.label || c.text}
-              </button>
-            ))}
+            {m.chips.map((c, i) => {
+              const label = typeof c === "string" ? c : c.label || c.text;
+              // The "Add all to cart" chip is an action, not a new question.
+              const isAddAll = /add all to cart/i.test(label) && canAddAll;
+              return (
+                <button
+                  key={i}
+                  data-testid={`chat-chip-${i}`}
+                  onClick={() => (isAddAll ? onAddAll(m.suggestions, m.cards) : onChip(label))}
+                  className="rounded-full border border-[#ff7a2f]/30 bg-[#ff7a2f]/10 px-3 py-1 text-xs text-[#ff7a2f] transition-colors hover:bg-[#ff7a2f]/20"
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
         )}
 

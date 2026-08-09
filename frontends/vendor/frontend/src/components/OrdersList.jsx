@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { updateOrderStatus } from "@/lib/api";
+import { LiveTracking } from "@/components/LiveTracking";
 import { formatINR, pick } from "@/lib/format";
 import { toast } from "sonner";
 
@@ -50,6 +51,7 @@ const statusGroup = (order) => {
 
 const OrderCard = ({ order, index }) => {
   const [open, setOpen] = useState(false);
+  const [showTrack, setShowTrack] = useState(false);
   const [note, setNote] = useState("");
   const queryClient = useQueryClient();
   const id = pick(order, ["id", "_id", "order_id", "reference"], `#${index + 1}`);
@@ -207,6 +209,24 @@ const OrderCard = ({ order, index }) => {
                 ))}
               </div>
             </div>
+
+            {orderApiId != null && (s.includes("accept") || s.includes("ship") || s.includes("dispatch") || s.includes("fulfil") || s.includes("deliver")) && (
+              <div className="border-t border-white/10 pt-3">
+                <Button
+                  onClick={() => setShowTrack((v) => !v)}
+                  data-testid={`track-order-btn-${id}`}
+                  className="w-full border border-[#ff7a2f]/40 bg-[#ff7a2f]/10 text-[#ff7a2f] hover:bg-[#ff7a2f]/20"
+                >
+                  <Truck size={15} className="mr-1.5" />
+                  {showTrack ? "Hide delivery tracking" : "Track delivery"}
+                </Button>
+                {showTrack && (
+                  <div className="mt-3">
+                    <LiveTracking orderId={orderApiId} />
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="flex items-center justify-between border-t border-white/10 pt-3">
               <span className="text-sm text-[#94a3b8]">Total</span>

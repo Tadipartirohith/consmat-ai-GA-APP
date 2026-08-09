@@ -162,7 +162,7 @@ class Store:
             "id": f"ORD-{seq}", "seq": seq, "buyer_id": buyer, "buyer_name": buyer_name,
             "buyer_phone": buyer_phone, "buyer_email": buyer_email, "buyer_gstin": buyer_gstin,
             "location": location, "address": self.locations.get(location, {}).get("label", location),
-            "payment_method": payment_method, "status": "placed", "priority": "normal",
+            "payment_method": payment_method, "transport": "inbuilt", "status": "placed", "priority": "normal",
             "created_at": created, "dispatched_at": None, "delivered_at": None, "eta_at": None,
             "rating": 0, "proof": None, "proof_type": None, "note": None,
             "items": items, "total": total,

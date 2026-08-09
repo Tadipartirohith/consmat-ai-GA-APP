@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from typing import Optional, Any
 
-from ..store import store
+from ..store import store, iso, _now
 from ..auth import optional_user
 from .. import domain
 from ..serializers import buyer_order
@@ -109,10 +109,56 @@ def _construction_type(t: str):
     return ("standard", 1.0)
 
 
+_WORDNUM = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
+            "seven": 7, "eight": 8, "nine": 9, "ten": 10, "a": 1, "an": 1, "single": 1}
+_AREA_UNIT = r"(?:sq\s?\.?\s?ft|sqft|sft|square\s*(?:feet|foot)?)"
+
+
+def _to_int(s: str) -> int:
+    s = (s or "").strip().lower()
+    if s.isdigit():
+        return int(s)
+    return _WORDNUM.get(s, 1)
+
+
+_COUNT_TOK = r"\d+|one|two|three|four|five|six|seven|eight|nine|ten|a|an|single"
+
+
+def _parse_area(t: str) -> tuple[float, int]:
+    """Sum built-up area from one message, honouring per-apartment breakdowns like
+    'one 1150 sqft, one 1350 sqft, and other 2 flats of 2100 sqft each'. Returns
+    (total_area, clause_count). Works clause by clause so a header count such as
+    '4 apartments' never multiplies the wrong item. Plot units in sq yards/metres and
+    the digits inside '3bhk' are ignored so they never masquerade as an area/count."""
+    # drop the leading digit of bhk/rk tokens so '3bhk' is not read as a count
+    t2 = re.sub(r"\b\d+\s*(bhks?|rks?)\b", r"\1", t)
+    total, clauses = 0.0, 0
+    for part in re.split(r"[,;.]|\band\b", t2):
+        am = re.search(r"(\d[\d,]*)\s*" + _AREA_UNIT, part)
+        if not am:
+            continue
+        area = float(am.group(1).replace(",", ""))
+        if area < 80:                       # too small to be a built-up area
+            continue
+        before = part[:am.start()]
+        # a count sitting immediately before the area wins ("one 1150 sqft" -> 1)
+        adj = re.search(r"(" + _COUNT_TOK + r")\s*$", before.strip())
+        if adj:
+            cnt = _to_int(adj.group(1))
+        elif re.search(r"\beach\b", part):  # "2 flats of 2100 sqft each" -> use the clause count
+            nums = re.findall(r"\b(" + _COUNT_TOK + r")\b", before)
+            cnt = _to_int(nums[-1]) if nums else 1
+        else:
+            cnt = 1
+        total += max(1, cnt) * area
+        clauses += 1
+    return total, clauses
+
+
 def parse_request(t: str, default_pq: int) -> dict:
     """Understand a whole request from one message (deterministic)."""
     req = {"materials": [], "qty": {}, "area": None, "floors": 1, "brick_walls": True,
-           "wants_all": False, "greet": False}
+           "wants_all": False, "greet": False, "nearby": False}
     req["construction_type"], req["mult"] = _construction_type(t)
     if re.search(r"cheap|budget|low price|economical|save money|tight", t):
         req["pq"] = 5
@@ -128,20 +174,32 @@ def parse_request(t: str, default_pq: int) -> dict:
             key = ("steel" if near == "tmt" else "bricks" if near in ("brick", "block")
                    else "aggregate" if near == "gravel" else near)
             req["qty"][key] = float(mm.group(1).replace(",", ""))
-    am = re.search(r"(\d[\d,\.]*)\s*(?:sq\s?\.?\s?ft|sqft|sft|square\s*(?:feet|foot)?)", t)
-    if am:
-        req["area"] = float(am.group(1).replace(",", ""))
-    fm = re.search(r"(\d+)\s*-?\s*(?:floors?|storey?s?|stories|levels?|flr)", t)
+    area_total, area_clauses = _parse_area(t)
+    fm = re.search(r"(\d+)\s*-?\s*(?:floors?|stor(?:eys?|ys?|ies)|levels?|flr)", t)
     if fm:
         req["floors"] = max(1, int(fm.group(1)))
     gm = re.search(r"\bg\s*\+\s*(\d+)", t)
     if gm:
         req["floors"] = int(gm.group(1)) + 1
+    if area_total:
+        # When several apartments/units are itemised, that sum is the per-floor
+        # area and the floor count multiplies it. A single area is taken as given.
+        req["area"] = area_total
     if re.search(r"no bricks?|without bricks?|rcc only|no masonry", t):
         req["brick_walls"] = False
-    if re.search(r"\beverything\b|\ball materials?\b|full list|entire|whole (house|building|project|thing)|"
-                 r"complete bom|one shot|single shot|everything i need|all i need", t):
+    if re.search(r"\beverything\b|\ball (the )?materials?\b|full (list|bom)|entire|"
+                 r"whole (house|building|project|thing)|complete bom|one shot|single shot|"
+                 r"everything i need|all i need|the works", t):
         req["wants_all"] = True
+    # A bare "all" / "all of them" reply (e.g. after we asked which materials) means
+    # "price every material" — list all five with typical quantities, don't re-ask.
+    if re.fullmatch(r"\s*(yes,?\s*)?(all|everything|all of (it|them)|all materials?|price (them )?all|"
+                    r"give me all|list all)\s*[!.]*\s*", t) and not req["area"]:
+        req["wants_all"] = True
+        if not req["materials"]:
+            req["materials"] = list(MATERIAL_IDS)
+    if re.search(r"\bnear(by| me| by)?\b|closest|nearest|around me|close to me", t):
+        req["nearby"] = True
     if re.search(r"\b(hi|hello|hey|namaste|yo)\b", t) and not req["materials"] and not req["area"] \
             and not req["wants_all"]:
         req["greet"] = True
@@ -251,10 +309,10 @@ def _build_lines(items: list, loc: str, pq: int):
 
 
 def _list_reply(sugg: list, loc: str, grand: float, lead: str, note: str = "") -> str:
-    lines = "\n".join(f"• {s['material']}: {s['quantity']} {s['unit']} — {s['vendor']} "
+    lines = "\n".join(f"• {s['material']}: {s['quantity']} {s['unit']} from {s['vendor']} "
                       f"({_inr(s['landed_price'])})" for s in sugg)
-    return (f"{lead}{note}:\n{lines}\n\nGrand total: {_inr(grand)} delivered to {loc.title()}. "
-            f"Tap “Add all to cart” to acquire it all in one go.")
+    return (f"{lead}.{note}\n{lines}\n\nThat comes to {_inr(grand)} delivered to {loc.title()}. "
+            f"Want me to add all of it to your cart in one go?")
 
 
 @router.post("/ai/chat")
@@ -275,11 +333,23 @@ def ai_chat(body: ChatBody):
     pq = req["pq"]
 
     if req["greet"]:
-        return {"reply": "Hi! Describe your whole job in one line and I'll list everything and price it "
-                         "delivered — e.g. “everything for a 1500 sqft 2-floor house in Medchal, "
-                         "on a budget”, or name items like “50 bags cement, 3 t steel, 5000 bricks”.",
+        return {"reply": "Hi, I'm your Consmat procurement assistant. Tell me what you're building in "
+                         "plain words and I'll work out the materials and price them delivered. For "
+                         "example, try \"everything for a 1500 sqft 2 floor house in Medchal on a "
+                         "budget\", or just name what you need like \"50 bags cement, 3 tonnes steel, "
+                         "5000 bricks\".",
                 "chips": ["Everything for a 1500 sqft house in Medchal",
-                          "50 bags cement + 3 t steel in Medchal", "Just sand & aggregate, cheapest"],
+                          "50 bags cement and 3 t steel in Medchal", "Just sand and aggregate, cheapest"],
+                "cards": [], "suggestions": []}
+
+    # ---- "Who's near me?" style questions with nothing else to go on ----
+    if req["nearby"] and not req["materials"] and not req["area"] and not req["wants_all"]:
+        near = store.dest(loc)
+        return {"reply": f"For {loc.title()}, I line up the closest approved vendors for whatever you "
+                         f"need and show the delivery distance on every quote. Tell me which materials "
+                         f"you're after (or just say \"all\") and I'll price them from the nearest "
+                         f"reliable seller.",
+                "chips": ["All materials", "Cement", "TMT steel", "Sand", "Bricks"],
                 "cards": [], "suggestions": []}
 
     # ---- Whole-project, single shot: area given -> full bill of materials ----
@@ -288,42 +358,49 @@ def ai_chat(body: ChatBody):
                                              req["brick_walls"], store.materials)
         items = [(l["material"], l["quantity"]) for l in bom]
         sugg, cards, grand = _build_lines(items, loc, pq)
-        lead = (f"For a {int(total_sqft):,} sq ft {req['construction_type']} build "
-                f"({req['floors']} floor{'s' if req['floors'] > 1 else ''}), here's everything you need "
-                f"— each from its cheapest reliable vendor, delivery included")
+        floor_txt = f"{req['floors']} floor{'s' if req['floors'] > 1 else ''}"
+        lead = (f"Here's the full material list for a {int(total_sqft):,} sq ft {req['construction_type']} "
+                f"build across {floor_txt}. I've picked the cheapest reliable vendor for each item, "
+                f"with delivery included")
         return {"reply": _list_reply(sugg, loc, grand, lead),
-                "chips": ["Add all to cart", "Make it cheaper", "Best quality only"],
+                "chips": ["Add all to cart"],
                 "cards": cards, "suggestions": sugg}
 
     # ---- "Everything" but no area yet -> one focused question ----
     if req["wants_all"] and not req["materials"]:
-        return {"reply": "Happy to spec the whole thing in one shot — what's the built-up area (sq ft) "
-                         "and how many floors? e.g. “1500 sqft, 2 floors, standard”.",
+        return {"reply": "Happy to spec the whole thing in one go. What's the built-up area in sq ft and "
+                         "how many floors? Something like \"1500 sqft, 2 floors, standard\" is all I "
+                         "need, and I'll handle the rest.",
                 "chips": ["1500 sqft, 2 floors", "2400 sqft, premium", "1000 sqft, economy"],
                 "cards": [], "suggestions": []}
 
     mats = req["materials"] or (MATERIAL_IDS if req["wants_all"] else [])
     if not mats:
-        return {"reply": "Which materials — cement, TMT steel, sand, aggregate, or bricks? Name as many "
-                         "as you like in one message and I'll price them all together.",
-                "chips": ["Cement", "TMT steel", "Sand", "Aggregate", "Bricks"],
+        return {"reply": "Sure, which materials do you need? I can do cement, TMT steel, sand, aggregate "
+                         "and bricks. Name as many as you like in one message, or just say \"all\" and "
+                         "I'll price the whole set together.",
+                "chips": ["All materials", "Cement", "TMT steel", "Sand", "Bricks"],
                 "cards": [], "suggestions": []}
 
     items = [(mid, req["qty"].get(mid) or store.materials[mid]["qty_hint"]) for mid in mats]
     sugg, cards, grand = _build_lines(items, loc, pq)
     missing = [store.materials[mid]["name"] for mid in mats if mid not in req["qty"]]
-    note = f" (assumed typical quantities for {', '.join(missing)} — adjust in the cart)" if missing else ""
+    note = (f" I've assumed typical quantities for {', '.join(missing)}, which you can adjust in the cart."
+            if missing else "")
 
     if len(sugg) > 1:
-        reply = _list_reply(sugg, loc, grand, "Here's everything, each from its cheapest reliable vendor", note)
+        reply = _list_reply(sugg, loc, grand,
+                            "Here's each item from the cheapest reliable vendor I could find", note)
     elif sugg:
         s = sugg[0]
-        reply = (f"Best value for {s['material']} ({s['quantity']} {s['unit']}) delivered to {loc.title()}: "
-                 f"{s['vendor']} at {_inr(s['landed_price'])}.{note} Tap “Add all to cart” to acquire it.")
+        reply = (f"For {s['quantity']} {s['unit']} of {s['material']} delivered to {loc.title()}, your "
+                 f"best value is {s['vendor']} at {_inr(s['landed_price'])}.{note} Want me to add it to "
+                 f"your cart?")
     else:
-        reply = "No approved vendor clears the quality bar for that yet — try lowering the quality bar."
+        reply = ("I couldn't find an approved vendor that clears the quality bar for that just yet. "
+                 "Try again with the quality bar a little lower and I'll widen the search.")
     return {"reply": reply,
-            "chips": ["Add all to cart", "Make it cheaper", "Best quality only", "Add another material"],
+            "chips": ["Add all to cart"],
             "cards": cards, "suggestions": sugg}
 
 
@@ -440,16 +517,21 @@ class CheckoutItem(BaseModel):
     price: Optional[float] = None
 
 
+TRANSPORT_MODES = {"inbuilt", "external", "self"}
+
+
 class CheckoutBody(BaseModel):
     items: list[CheckoutItem]
     payment_method: str = "upi"
     location: str = "hyderabad"
+    transport: str = "inbuilt"          # inbuilt (Consmat fleet) | external (3rd-party) | self (pickup)
     optimize: Optional[Any] = None
 
 
 @router.post("/orders/checkout")
 def checkout(body: CheckoutBody, user: dict | None = Depends(optional_user)):
     dest = store.dest(body.location)
+    transport = body.transport if body.transport in TRANSPORT_MODES else "inbuilt"
     order_items = []
     for it in body.items:
         mid = resolve_material(it.material)
@@ -458,13 +540,18 @@ def checkout(body: CheckoutBody, user: dict | None = Depends(optional_user)):
         best = domain.cheapest(store.offers_for(mid), it.quantity, dest, mid, store.pricing)
         if not best:
             continue
-        order_items.append(store._mk_item(mid, it.quantity, best))
+        item = store._mk_item(mid, it.quantity, best)
+        if transport == "self":
+            # Buyer arranges their own pickup, so the delivery leg drops off the price.
+            item["landed_cost"] = round(item["unit_price"] * item["quantity"], 2)
+        order_items.append(item)
     if not order_items:
         return {"order_id": None, "error": "No matchable items"}
     buyer_name = user["name"] if user else "Guest Buyer"
     buyer_id = user["email"] if user else None
     order = store.create_order(order_items, body.location, body.payment_method, buyer_id, buyer_name)
-    return {"order_id": order["id"]}
+    order["transport"] = transport
+    return {"order_id": order["id"], "transport": transport, "total": order["total"]}
 
 
 @router.get("/orders")
@@ -473,3 +560,77 @@ def orders(user: dict | None = Depends(optional_user)):
     if user and user["role"] == "buyer":
         out = [o for o in store.orders if o.get("buyer_id") == user["email"]] or store.orders
     return {"orders": [buyer_order(o) for o in out]}
+
+
+# ------------------------------------------------------------ tracking ------
+_DRIVERS = [
+    ("Ravi Kumar", "+91 98765 40001"), ("Suresh Reddy", "+91 98765 40002"),
+    ("Imran Khan", "+91 98765 40003"), ("Mahesh Rao", "+91 98765 40004"),
+    ("Venkatesh N", "+91 98765 40005"), ("Anil Yadav", "+91 98765 40006"),
+]
+
+
+def _driver_for(order: dict) -> dict:
+    h = abs(hash(order["id"]))
+    name, phone = _DRIVERS[h % len(_DRIVERS)]
+    return {"name": name, "phone": phone,
+            "vehicle_no": f"TS{10 + h % 30:02d} {'ABUVXY'[h % 6]}{'BCDGKL'[h % 6]} {1000 + h % 9000}"}
+
+
+def _order_progress(o: dict) -> float:
+    """0 at the origin, 1 at the buyer's site. Derived from the order timeline."""
+    st = o["status"]
+    if st == "delivered":
+        return 1.0
+    if st == "cancelled":
+        return 0.0
+    if st == "dispatched":
+        disp, eta = o.get("dispatched_at"), o.get("eta_at")
+        if disp and eta and eta > disp:
+            frac = (_now() - disp).total_seconds() / (eta - disp).total_seconds()
+            return max(0.05, min(0.97, frac))
+        return 0.5
+    return 0.0  # placed / preparing for dispatch
+
+
+def build_tracking(o: dict) -> dict:
+    primary = o["items"][0] if o["items"] else {}
+    wh = store.warehouses.get(primary.get("warehouse_id")) or store.warehouses["hub"]
+    dst = store.dest(o["location"])
+    origin = {"lat": wh["lat"], "lng": wh["lng"], "name": wh["name"]}
+    dest = {"lat": dst["lat"], "lng": dst["lng"], "name": dst.get("label", o["location"].title())}
+    total_km = domain.distance_km(wh, dst)
+    p = _order_progress(o)
+    vehicle = {"lat": round(origin["lat"] + (dest["lat"] - origin["lat"]) * p, 5),
+               "lng": round(origin["lng"] + (dest["lng"] - origin["lng"]) * p, 5)}
+    stage = ("Delivered" if o["status"] == "delivered" else
+             "Cancelled" if o["status"] == "cancelled" else
+             "Out for delivery" if o["status"] == "dispatched" else
+             "Preparing for dispatch")
+    return {
+        "order_id": o["id"], "status": o["status"], "stage": stage,
+        "origin": origin, "dest": dest, "vehicle": vehicle,
+        "progress": round(p, 3), "distance_km": total_km,
+        "remaining_km": round(total_km * (1 - p)),
+        "vendor": primary.get("vendor_name", ""),
+        "transport": o.get("transport", "inbuilt"),
+        "eta_at": iso(o.get("eta_at")),
+        "dispatched_at": iso(o.get("dispatched_at")),
+        "delivered_at": iso(o.get("delivered_at")),
+        "driver": _driver_for(o) if o["status"] in ("dispatched", "delivered") else None,
+    }
+
+
+@router.get("/orders/{order_id}/tracking")
+def order_tracking(order_id: str, user: dict | None = Depends(optional_user)):
+    o = store.get_order(order_id)
+    if not o:
+        return {"error": "Order not found"}
+    return build_tracking(o)
+
+
+@router.get("/tracking/active")
+def active_tracking(user: dict | None = Depends(optional_user)):
+    """Every in-transit delivery, for a fleet / dispatch live view."""
+    live = [build_tracking(o) for o in store.orders if o["status"] == "dispatched"]
+    return {"count": len(live), "deliveries": live}

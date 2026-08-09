@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Smartphone, CreditCard, Landmark, CheckCircle2, Loader2 } from "lucide-react";
+import { Smartphone, CreditCard, Landmark, CheckCircle2, Loader2, Truck, PackageOpen, Building2 } from "lucide-react";
 import { toast } from "sonner";
 
 const METHODS = [
@@ -18,12 +18,21 @@ const METHODS = [
   { id: "credit", label: "Credit", icon: Landmark, desc: "Buy now, pay later" },
 ];
 
+// How the goods get to site. Self pickup drops the delivery leg from the price.
+const TRANSPORT = [
+  { id: "inbuilt", label: "Consmat fleet", icon: Truck, desc: "We deliver with our own vehicles (price includes delivery)" },
+  { id: "external", label: "External", icon: Building2, desc: "A third-party logistics partner delivers to your site" },
+  { id: "self", label: "Self pickup", icon: PackageOpen, desc: "You collect from the vendor. Delivery cost is removed" },
+];
+
 export function CheckoutModal({ open, onOpenChange, optimizeResult, onDone }) {
   const { cart, clearCart, location } = useApp();
   const [method, setMethod] = useState("upi");
+  const [transport, setTransport] = useState("inbuilt");
   const [placing, setPlacing] = useState(false);
   const [placed, setPlaced] = useState(null);
 
+  const itemCount = cart.reduce((a, c) => a + Number(c.quantity || 0), 0);
   const total = cart.reduce(
     (a, c) => a + Number(c.price || 0) * Number(c.quantity || 0),
     0
@@ -41,6 +50,7 @@ export function CheckoutModal({ open, onOpenChange, optimizeResult, onDone }) {
           price: c.price,
         })),
         payment_method: method,
+        transport,
         location,
         optimize: optimizeResult || undefined,
       });
@@ -73,7 +83,7 @@ export function CheckoutModal({ open, onOpenChange, optimizeResult, onDone }) {
             <p className="mt-1 text-sm text-white/60">
               Order ID:{" "}
               <span className="font-mono text-[#ff7a2f]">
-                {placed.order_id || placed.id || placed.orderId || "—"}
+                {placed.order_id || placed.id || placed.orderId || "confirmed"}
               </span>
             </p>
             <Button
@@ -87,7 +97,12 @@ export function CheckoutModal({ open, onOpenChange, optimizeResult, onDone }) {
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle className="font-head text-xl">Checkout</DialogTitle>
+              <DialogTitle className="font-head text-xl">
+                Checkout
+                <span className="ml-2 text-sm font-normal text-white/50">
+                  {cart.length} line{cart.length === 1 ? "" : "s"} · {itemCount} item{itemCount === 1 ? "" : "s"}
+                </span>
+              </DialogTitle>
             </DialogHeader>
 
             <div className="space-y-2 rounded-lg bg-black/25 p-3 text-sm">
@@ -105,6 +120,36 @@ export function CheckoutModal({ open, onOpenChange, optimizeResult, onDone }) {
                   <span className="font-mono text-[#ff7a2f]">{formatINR(total)}</span>
                 </div>
               )}
+            </div>
+
+            <div>
+              <p className="mb-2 text-[10px] uppercase tracking-[0.2em] text-white/40">
+                Transport
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {TRANSPORT.map((tp) => {
+                  const Icon = tp.icon;
+                  const active = transport === tp.id;
+                  return (
+                    <button
+                      key={tp.id}
+                      data-testid={`transport-${tp.id}`}
+                      onClick={() => setTransport(tp.id)}
+                      className={`flex flex-col items-center gap-1.5 rounded-xl border p-3 text-center transition-colors ${
+                        active
+                          ? "border-[#ff7a2f] bg-[#ff7a2f]/10 text-[#ff7a2f]"
+                          : "border-white/10 bg-[#0f1216] text-white/60 hover:border-white/30"
+                      }`}
+                    >
+                      <Icon size={20} />
+                      <span className="text-xs font-semibold leading-tight">{tp.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-xs text-white/40">
+                {TRANSPORT.find((tp) => tp.id === transport)?.desc}
+              </p>
             </div>
 
             <div>

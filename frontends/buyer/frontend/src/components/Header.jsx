@@ -20,8 +20,6 @@ import {
   ShoppingCart,
   Receipt,
   LogOut,
-  IndianRupee,
-  Gem,
   Volume2,
   VolumeX,
   Bell,
@@ -45,8 +43,6 @@ export function Header({ onOpenCart, onOpenOrders, cartCount = 0 }) {
   const {
     location,
     setLocation,
-    priceQuality,
-    setPriceQuality,
     logout,
     ordersMoved,
     alerts,
@@ -269,34 +265,6 @@ export function Header({ onOpenCart, onOpenOrders, cartCount = 0 }) {
               <LogOut size={18} />
             </Button>
           </div>
-        </div>
-
-        {/* Price <-> Quality slider */}
-        <div className="flex items-center gap-3 pb-3 pt-1">
-          <span className="flex items-center gap-1 text-xs font-semibold text-white/50">
-            <IndianRupee size={13} /> Cheapest
-          </span>
-          <input
-            data-testid="slider-price-quality"
-            type="range"
-            min="0"
-            max="100"
-            value={priceQuality}
-            onChange={(e) => setPriceQuality(Number(e.target.value))}
-            className="pq-slider flex-1"
-            style={{
-              background: `linear-gradient(to right, #ff7a2f 0%, #ff7a2f ${priceQuality}%, #2a323d ${priceQuality}%, #2a323d 100%)`,
-            }}
-          />
-          <span className="flex items-center gap-1 text-xs font-semibold text-white/50">
-            Best quality <Gem size={13} />
-          </span>
-          <span
-            data-testid="price-quality-value"
-            className="w-8 shrink-0 text-right font-mono text-xs text-[#ff7a2f]"
-          >
-            {priceQuality}
-          </span>
         </div>
       </div>
     </header>

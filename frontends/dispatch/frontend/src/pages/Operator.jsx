@@ -23,9 +23,11 @@ import { api, stockLevel } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import TicketCard from "@/components/TicketCard";
 import StockCard from "@/components/StockCard";
+import FleetTracking from "@/components/FleetTracking";
 
 const TABS = [
   { key: "queue", label: "Dispatch Queue", icon: ClipboardText },
+  { key: "fleet", label: "Live Fleet", icon: Broadcast },
   { key: "stock", label: "Network Stock", icon: Stack },
 ];
 
@@ -572,6 +574,8 @@ export default function Operator() {
             </div>
           </>
         )}
+
+        {tab === "fleet" && <FleetTracking />}
 
         {tab === "stock" && (
           <>

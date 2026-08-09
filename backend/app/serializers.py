@@ -1,5 +1,5 @@
-"""Per-app serialization — maps the single internal order/vendor model into the
-exact field names + shapes each Emergent frontend consumes."""
+"""Per-app serialization: maps the single internal order/vendor model into the
+exact field names and shapes each frontend consumes."""
 from __future__ import annotations
 
 from datetime import timedelta

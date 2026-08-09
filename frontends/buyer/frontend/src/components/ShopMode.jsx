@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { getMaterials, match } from "@/lib/api";
 import { useApp } from "@/context/AppContext";
-import { VendorCard } from "@/components/VendorCard";
+import { VendorResults } from "@/components/VendorResults";
 import { titleCase } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,7 +84,7 @@ export function ShopMode() {
               {titleCase(selected?.name || selected?.material || "Matches")}
             </h2>
             <p className="text-sm text-white/50">
-              Best vendors for {location} · {quantity ? `${quantity} units · ` : ""}quality bias {priceQuality}
+              Best vendors for {titleCase(location)}{quantity ? ` · ${quantity} units` : ""}
             </p>
           </div>
         </div>
@@ -96,11 +96,7 @@ export function ShopMode() {
             ))}
           </div>
         ) : results && results.length > 0 ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {results.map((r, i) => (
-              <VendorCard key={i} data={r} index={i} onAdd={addToCart} />
-            ))}
-          </div>
+          <VendorResults cards={results} onAdd={addToCart} />
         ) : (
           <EmptyState text="No vendor matches returned." />
         )}

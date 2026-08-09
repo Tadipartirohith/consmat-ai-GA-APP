@@ -66,4 +66,7 @@ export const getVendorOrders = () => api.get("/vendors/me/orders");
 export const updateOrderStatus = (orderId, status, note) =>
   api.put(`/vendors/me/orders/${orderId}`, note ? { status, note } : { status });
 
+export const getTracking = (orderId) =>
+  api.get(`/orders/${orderId}/tracking`).then((r) => r.data);
+
 export default api;

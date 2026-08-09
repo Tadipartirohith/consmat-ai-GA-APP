@@ -1,4 +1,4 @@
-"""Consmat AI — unified backend for all four Emergent frontends
+"""Consmat AI — unified backend for all four frontends
 (buyer / vendor / admin / operator). Single process, in-memory store seeded
 from config.yaml. Serves the exact API shapes each frontend consumes."""
 from __future__ import annotations

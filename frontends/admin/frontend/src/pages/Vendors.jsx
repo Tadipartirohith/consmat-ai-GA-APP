@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Search, ShieldCheck, CheckCircle2, Store, Download, ChevronRight, X } from "lucide-react";
+import { Loader2, Search, ShieldCheck, CheckCircle2, XCircle, Store, Download, ChevronRight, X, Ban, RotateCcw, Trash2, Plus } from "lucide-react";
 import { api, apiErrorMessage, compactINR } from "@/lib/api";
 import { StarRating } from "@/components/StarRating";
 import { VendorDrawer } from "@/components/VendorDrawer";
+import { AddVendorDialog } from "@/components/AddVendorDialog";
 import { exportToCsv } from "@/lib/csv";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -15,6 +16,12 @@ function KycBadge({ status }) {
     return (
       <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-500 text-emerald-400">
         <CheckCircle2 size={12} /> Approved
+      </span>
+    );
+  if (status === "rejected")
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md border border-red-500/20 bg-red-500/10 px-2 py-0.5 text-[11px] font-500 text-red-400">
+        <XCircle size={12} /> Rejected
       </span>
     );
   return (
@@ -28,23 +35,76 @@ export default function Vendors() {
   const qc = useQueryClient();
   const [q, setQ] = useState("");
   const [approvingId, setApprovingId] = useState(null);
+  const [busyId, setBusyId] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [selected, setSelected] = useState(() => new Set());
 
   const vendorsQ = useQuery({ queryKey: ["vendors"], queryFn: async () => (await api.get("/admin/vendors")).data });
+
+  const refreshVendors = (data) => {
+    qc.invalidateQueries({ queryKey: ["vendors"] });
+    if (data?.id) qc.invalidateQueries({ queryKey: ["vendor", data.id] });
+    qc.invalidateQueries({ queryKey: ["metrics"] });
+  };
 
   const approve = useMutation({
     mutationFn: async (id) => (await api.post(`/admin/vendors/${id}/approve`)).data,
     onMutate: (id) => setApprovingId(id),
     onSuccess: (data) => {
       toast.success("KYC approved", { description: `${data.name} is now an active vendor.` });
-      qc.invalidateQueries({ queryKey: ["vendors"] });
-      qc.invalidateQueries({ queryKey: ["vendor", data.id] });
-      qc.invalidateQueries({ queryKey: ["metrics"] });
+      refreshVendors(data);
     },
     onError: (e) => toast.error("Approval failed", { description: apiErrorMessage(e) }),
     onSettled: () => setApprovingId(null),
+  });
+
+  // Reject a pending request OR revoke an already-approved vendor (both leave it rejected).
+  const reject = useMutation({
+    mutationFn: async (id) => (await api.post(`/admin/vendors/${id}/reject`)).data,
+    onMutate: (id) => setBusyId(id),
+    onSuccess: (data) => {
+      toast.success(data.was_approved ? "Approval revoked" : "KYC rejected", {
+        description: `${data.name} is now rejected and hidden from buyers.`,
+      });
+      refreshVendors(data);
+    },
+    onError: (e) => toast.error("Reject failed", { description: apiErrorMessage(e) }),
+    onSettled: () => setBusyId(null),
+  });
+
+  // Send an approved vendor back to pending KYC (soft un-approve, keeps the record).
+  const revoke = useMutation({
+    mutationFn: async (id) => (await api.post(`/admin/vendors/${id}/revoke`)).data,
+    onMutate: (id) => setBusyId(id),
+    onSuccess: (data) => {
+      toast.success("Sent back to pending", { description: `${data.name} now needs KYC again.` });
+      refreshVendors(data);
+    },
+    onError: (e) => toast.error("Action failed", { description: apiErrorMessage(e) }),
+    onSettled: () => setBusyId(null),
+  });
+
+  const remove = useMutation({
+    mutationFn: async (id) => (await api.delete(`/admin/vendors/${id}`)).data,
+    onMutate: (id) => setBusyId(id),
+    onSuccess: (data) => {
+      toast.success("Vendor removed", { description: `${data.name} has been deleted.` });
+      refreshVendors();
+    },
+    onError: (e) => toast.error("Remove failed", { description: apiErrorMessage(e) }),
+    onSettled: () => setBusyId(null),
+  });
+
+  const addVendor = useMutation({
+    mutationFn: async (body) => (await api.post("/admin/vendors", body)).data,
+    onSuccess: (data) => {
+      toast.success("Vendor added", { description: `${data.name} is now in your directory.` });
+      setAddOpen(false);
+      refreshVendors(data);
+    },
+    onError: (e) => toast.error("Could not add vendor", { description: apiErrorMessage(e) }),
   });
 
   const bulkApprove = useMutation({
@@ -127,6 +187,13 @@ export default function Vendors() {
             className="inline-flex shrink-0 items-center gap-2 rounded-md border border-cm-border bg-cm-panel px-3 py-2 text-sm font-500 text-cm-muted transition-colors hover:border-cm-accent/40 hover:text-cm-accent"
           >
             <Download size={15} /> <span className="hidden sm:inline">Export CSV</span>
+          </button>
+          <button
+            onClick={() => setAddOpen(true)}
+            data-testid="add-vendor-button"
+            className="inline-flex shrink-0 items-center gap-2 rounded-md bg-cm-accent px-3 py-2 text-sm font-600 text-black transition-all hover:brightness-110 active:scale-95"
+          >
+            <Plus size={15} /> <span className="hidden sm:inline">Add vendor</span>
           </button>
         </div>
       </div>
@@ -235,21 +302,53 @@ export default function Vendors() {
                     <td className="px-5 py-3.5"><StarRating value={v.rating} size={13} /></td>
                     <td className="px-5 py-3.5 text-right font-mono text-cm-text">{compactINR(v.gmv)}</td>
                     <td className="px-5 py-3.5"><KycBadge status={v.kyc_status} /></td>
-                    <td className="px-5 py-3.5 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {isPending ? (
+                    <td className="px-5 py-3.5 text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1.5">
+                        {(isPending || v.kyc_status === "rejected") && (
                           <button
-                            onClick={(e) => { e.stopPropagation(); approve.mutate(v.id); }}
+                            onClick={() => approve.mutate(v.id)}
                             disabled={approvingId === v.id}
                             data-testid={`approve-kyc-button-${v.id}`}
+                            title={isPending ? "Approve KYC" : "Re-approve vendor"}
                             className="inline-flex items-center gap-1.5 rounded-md bg-cm-accent px-3 py-1.5 text-xs font-600 text-black transition-all hover:brightness-110 active:scale-95 disabled:opacity-60"
                           >
                             {approvingId === v.id ? <Loader2 size={13} className="animate-spin" /> : <ShieldCheck size={13} />}
-                            Approve KYC
+                            {isPending ? "Approve" : "Re-approve"}
                           </button>
-                        ) : (
-                          <span className="text-xs text-cm-muted">—</span>
                         )}
+                        {v.kyc_status === "approved" && (
+                          <button
+                            onClick={() => revoke.mutate(v.id)}
+                            disabled={busyId === v.id}
+                            data-testid={`revoke-kyc-button-${v.id}`}
+                            title="Send back to pending KYC"
+                            className="inline-flex items-center gap-1.5 rounded-md border border-cm-border px-2.5 py-1.5 text-xs font-500 text-cm-muted transition-colors hover:border-yellow-500/40 hover:text-yellow-400 disabled:opacity-60"
+                          >
+                            <RotateCcw size={13} /> Revoke
+                          </button>
+                        )}
+                        {v.kyc_status !== "rejected" && (
+                          <button
+                            onClick={() => reject.mutate(v.id)}
+                            disabled={busyId === v.id}
+                            data-testid={`reject-kyc-button-${v.id}`}
+                            title={isPending ? "Reject KYC request" : "Reject / block this vendor"}
+                            className="inline-flex items-center gap-1.5 rounded-md border border-red-500/30 px-2.5 py-1.5 text-xs font-500 text-red-300 transition-colors hover:bg-red-500/10 disabled:opacity-60"
+                          >
+                            <Ban size={13} /> Reject
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Remove ${v.name}? This deletes the vendor permanently.`)) remove.mutate(v.id);
+                          }}
+                          disabled={busyId === v.id}
+                          data-testid={`remove-vendor-button-${v.id}`}
+                          title="Remove vendor"
+                          className="inline-flex items-center rounded-md border border-cm-border p-1.5 text-cm-muted transition-colors hover:border-red-500/40 hover:text-red-400 disabled:opacity-60"
+                        >
+                          {busyId === v.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                        </button>
                         <ChevronRight size={16} className="text-cm-muted" />
                       </div>
                     </td>
@@ -267,6 +366,13 @@ export default function Vendors() {
         onOpenChange={setDrawerOpen}
         onApprove={(id) => approve.mutate(id)}
         approving={approvingId === selectedId}
+      />
+
+      <AddVendorDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        onSubmit={(body) => addVendor.mutate(body)}
+        submitting={addVendor.isPending}
       />
     </div>
   );

@@ -17,6 +17,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { LiveTracking } from "@/components/LiveTracking";
 import { toast } from "sonner";
 import {
   Receipt,
@@ -204,6 +205,7 @@ export function OrdersSheet({ open, onOpenChange }) {
 function OrderDetailDialog({ order, updatedAt, onClose }) {
   const { addToCart, setCartOpen, setOrdersOpen } = useApp();
   const [pulse, setPulse] = useState(false);
+  const [tracking, setTracking] = useState(false);
 
   useEffect(() => {
     if (!updatedAt) return;
@@ -212,9 +214,17 @@ function OrderDetailDialog({ order, updatedAt, onClose }) {
     return () => clearTimeout(t);
   }, [updatedAt]);
 
+  // Collapse the live map whenever a different order is opened.
+  useEffect(() => {
+    setTracking(false);
+  }, [order && orderId(order)]);
+
   if (!order) return null;
   const items = g(order, ["items", "lines", "materials"], []);
   const rawStatus = String(g(order, ["status", "state"], "placed")).toLowerCase();
+  const canTrack = ["dispatched", "in_transit", "out", "delivered", "shipped"].some((s) =>
+    rawStatus.includes(s)
+  );
   const status = titleCase(rawStatus);
   const address = g(order, ["address", "location", "delivery_location"], null);
   const payment = g(order, ["payment_method", "payment"], null);
@@ -260,6 +270,25 @@ function OrderDetailDialog({ order, updatedAt, onClose }) {
         </DialogHeader>
 
         <StatusTimeline status={rawStatus} order={order} />
+
+        {canTrack && (
+          <div>
+            <Button
+              data-testid="track-order-btn"
+              onClick={() => setTracking((t) => !t)}
+              variant="outline"
+              className="w-full border-[#ff7a2f]/40 bg-[#ff7a2f]/10 text-[#ff7a2f] hover:bg-[#ff7a2f]/20"
+            >
+              <Truck size={16} className="mr-1.5" />
+              {tracking ? "Hide live tracking" : "Track live location"}
+            </Button>
+            {tracking && (
+              <div className="mt-3">
+                <LiveTracking orderId={g(order, ["order_id", "id", "orderId"])} />
+              </div>
+            )}
+          </div>
+        )}
 
         {pulse && (
           <div

@@ -71,6 +71,79 @@ def approve(vendor_id: str, _=Depends(require_role("admin"))):
     return {"id": v["id"], "name": v["name"], "kyc_status": "approved"}
 
 
+class RejectBody(BaseModel):
+    reason: Optional[str] = None
+
+
+@router.post("/admin/vendors/{vendor_id}/reject")
+def reject(vendor_id: str, body: Optional[RejectBody] = None, _=Depends(require_role("admin"))):
+    """Reject a KYC request, or revoke an already-approved vendor. Either way the
+    vendor is left un-approved (so it drops out of buyer search) and marked rejected."""
+    v = store.vendors.get(vendor_id)
+    if not v:
+        raise HTTPException(404, "Vendor not found")
+    was_approved = v["approved"]
+    v["approved"] = False
+    v["kyc_status"] = "rejected"
+    v["reject_reason"] = (body.reason if body else None) or "Rejected by admin"
+    return {"id": v["id"], "name": v["name"], "kyc_status": "rejected",
+            "was_approved": was_approved}
+
+
+@router.post("/admin/vendors/{vendor_id}/revoke")
+def revoke(vendor_id: str, _=Depends(require_role("admin"))):
+    """Send an approved vendor back to pending KYC (soft un-approve, keeps the record)."""
+    v = store.vendors.get(vendor_id)
+    if not v:
+        raise HTTPException(404, "Vendor not found")
+    v["approved"] = False
+    v["kyc_status"] = "pending"
+    v.pop("reject_reason", None)
+    return {"id": v["id"], "name": v["name"], "kyc_status": "pending"}
+
+
+class AddVendorBody(BaseModel):
+    name: str
+    category: Optional[str] = "General"
+    city: Optional[str] = ""
+    phone: Optional[str] = ""
+    tier: Optional[str] = "Trader"
+    quality: Optional[float] = 3.8
+    isi: Optional[bool] = False
+    credit: Optional[str] = "Cash"
+    approved: Optional[bool] = True
+
+
+@router.post("/admin/vendors")
+def add_vendor(body: AddVendorBody, _=Depends(require_role("admin"))):
+    import re as _re
+    base = _re.sub(r"[^a-z0-9]+", "", body.name.lower())[:16] or "vendor"
+    vid = "v_" + base + str(len(store.vendors) + 1)
+    store.vendors[vid] = {
+        "id": vid, "name": body.name, "tier": body.tier or "Trader",
+        "category": body.category or "General", "quality": float(body.quality or 0.0),
+        "isi": bool(body.isi), "credit": body.credit or "Cash", "city": body.city or "",
+        "phone": body.phone or "", "gstin": "",
+        "warehouse": store.logistics_config["default_dispatch_hub"],
+        "approved": bool(body.approved), "kyc_status": "approved" if body.approved else "pending",
+        "established": "2024", "rating_count": 0,
+        "description": f"{body.tier or 'Trader'} of construction materials in {body.city or 'Hyderabad'}.",
+        "offers": {},
+    }
+    return admin_vendor_detail(store.vendors[vid])
+
+
+@router.delete("/admin/vendors/{vendor_id}")
+def remove_vendor(vendor_id: str, _=Depends(require_role("admin"))):
+    v = store.vendors.pop(vendor_id, None)
+    if not v:
+        raise HTTPException(404, "Vendor not found")
+    # also drop any login tied to this vendor so it can't come back as a ghost
+    for email in [e for e, u in store.users.items() if u.get("vendor") == vendor_id]:
+        store.users.pop(email, None)
+    return {"removed": vendor_id, "name": v["name"]}
+
+
 class BulkBody(BaseModel):
     ids: list[str]
 
