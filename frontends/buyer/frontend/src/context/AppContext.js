@@ -192,6 +192,9 @@ export function AppProvider({ children }) {
           unit: item.unit || "units",
           vendor: item.vendor || null,
           price: item.price ?? item.landed_price ?? null,
+          // Per-unit price + fixed delivery so the line total recomputes on qty change.
+          unit_price: item.unit_price ?? null,
+          logistics: item.logistics ?? 0,
         },
       ];
     });

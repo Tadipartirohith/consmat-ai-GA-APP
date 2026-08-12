@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Pencil, Check, X, AlertTriangle, Package, SlidersHorizontal, Loader2, Search, Plus, Filter, PackagePlus, ArrowUpDown, ArrowUp, ArrowDown, Download } from "lucide-react";
+import { Pencil, Check, X, AlertTriangle, Package, SlidersHorizontal, Loader2, Search, Plus, Filter, PackagePlus, ArrowUpDown, ArrowUp, ArrowDown, Download, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   updateOffer,
   createOffer,
+  deleteOffer,
   getLowStockThreshold,
   setLowStockThreshold,
   getRestockPreset,
@@ -111,9 +112,13 @@ const AddOfferDialog = ({ onAdded }) => {
               data-testid="add-offer-name-input"
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="Basmati Rice 5kg"
+              placeholder="e.g. OPC 53 Cement, TMT Steel Fe500, River Sand"
               className="bg-[#0f1216] border-white/10 text-white focus-visible:ring-1 focus-visible:ring-[#ff7a2f]"
             />
+            <p className="text-[11px] text-[#94a3b8]">
+              Name it after a construction material (cement, TMT steel, sand, aggregate, bricks) so
+              buyers find it.
+            </p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -327,6 +332,20 @@ const EditableRow = ({ offer, threshold, onSaved }) => {
     setEditing(false);
   };
 
+  const delMutation = useMutation({
+    mutationFn: () => deleteOffer(getOfferId(offer)),
+    onSuccess: () => {
+      toast.success(`Removed "${getOfferName(offer)}"`);
+      onSaved?.();
+    },
+    onError: (err) =>
+      toast.error(err?.response?.data?.detail || err.message || "Failed to remove product"),
+  });
+
+  const confirmDelete = () => {
+    if (window.confirm(`Remove "${getOfferName(offer)}" from your catalogue?`)) delMutation.mutate();
+  };
+
   return (
     <TableRow
       className={`border-white/10 transition-colors duration-200 hover:bg-white/[0.03] ${
@@ -439,15 +458,28 @@ const EditableRow = ({ offer, threshold, onSaved }) => {
             </Button>
           </div>
         ) : (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setEditing(true)}
-            data-testid={`edit-offer-btn-${rowKey}`}
-            className="text-[#94a3b8] hover:bg-white/5 hover:text-[#ff7a2f]"
-          >
-            <Pencil size={14} className="mr-1.5" /> Edit
-          </Button>
+          <div className="flex items-center justify-end gap-1">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setEditing(true)}
+              data-testid={`edit-offer-btn-${rowKey}`}
+              className="text-[#94a3b8] hover:bg-white/5 hover:text-[#ff7a2f]"
+            >
+              <Pencil size={14} className="mr-1.5" /> Edit
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={confirmDelete}
+              disabled={delMutation.isPending}
+              data-testid={`delete-offer-btn-${rowKey}`}
+              title="Remove product"
+              className="h-8 w-8 text-[#94a3b8] hover:bg-white/5 hover:text-red-400"
+            >
+              {delMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+            </Button>
+          </div>
         )}
       </TableCell>
     </TableRow>

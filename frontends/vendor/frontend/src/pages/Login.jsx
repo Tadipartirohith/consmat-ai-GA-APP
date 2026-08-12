@@ -13,8 +13,8 @@ import { toast } from "sonner";
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("vendor@consmat.com");
+  const [password, setPassword] = useState("consmat123");
   const [loading, setLoading] = useState(false);
   const apiConfigured = !!getApiBase();
 
@@ -77,7 +77,7 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 data-testid="login-email-input"
-                placeholder="vendor@example.com"
+                placeholder="vendor@consmat.com"
                 className="bg-[#0f1216] border-white/10 text-white focus-visible:ring-1 focus-visible:ring-[#ff7a2f]"
               />
             </div>
@@ -106,7 +106,7 @@ export default function Login() {
           </form>
 
           <p className="mt-4 text-center text-xs text-[#94a3b8]">
-            Demo password: <span className="text-[#ff7a2f]">consmat123</span>
+            Demo: <span className="text-[#ff7a2f]">vendor@consmat.com</span> / <span className="text-[#ff7a2f]">consmat123</span>
           </p>
         </div>
 

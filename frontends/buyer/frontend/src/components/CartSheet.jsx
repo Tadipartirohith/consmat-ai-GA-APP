@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { optimize } from "@/lib/api";
-import { formatINR, formatNumber, titleCase } from "@/lib/format";
+import { formatINR, formatNumber, titleCase, cartLineTotal, cartGrandTotal } from "@/lib/format";
 import {
   Sheet,
   SheetContent,
@@ -95,23 +95,29 @@ export function CartSheet({ open, onOpenChange }) {
                 >
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-semibold">{titleCase(item.material)}</p>
-                    <p className="text-xs text-white/50">
-                      {item.vendor ? item.vendor + " · " : ""}
-                      {item.price ? formatINR(item.price) : "price on quote"}
+                    <p className="truncate text-xs text-white/50">
+                      {item.vendor ? item.vendor : "best vendor"}
                     </p>
+                    <p className="mt-0.5 font-mono text-sm text-[#ff7a2f]">{formatINR(cartLineTotal(item))}</p>
                   </div>
-                  <Input
-                    data-testid="cart-item-qty"
-                    type="number"
-                    value={item.quantity}
-                    onChange={(e) => updateCartItem(item.id, { quantity: Number(e.target.value) })}
-                    className="h-9 w-20 border-white/10 bg-[#0f1216] text-center"
-                  />
-                  <span className="w-10 text-xs text-white/40">{item.unit}</span>
+                  <div className="flex flex-col items-center gap-1">
+                    <Input
+                      data-testid="cart-item-qty"
+                      type="number"
+                      min="1"
+                      value={item.quantity}
+                      onChange={(e) =>
+                        updateCartItem(item.id, { quantity: Math.max(0, Number(e.target.value)) })
+                      }
+                      className="h-9 w-24 border-white/10 bg-[#0f1216] text-center"
+                    />
+                    <span className="text-[10px] text-white/40">{item.unit}</span>
+                  </div>
                   <button
                     data-testid="cart-item-remove"
                     onClick={() => removeCartItem(item.id)}
                     className="text-white/40 hover:text-red-400"
+                    title="Remove"
                   >
                     <Trash2 size={16} />
                   </button>
@@ -121,7 +127,7 @@ export function CartSheet({ open, onOpenChange }) {
 
             {opt && (
               <div className="mt-4 space-y-3 animate-fade-up" data-testid="optimize-result">
-                {savings !== undefined && savings !== null && (
+                {savings !== undefined && savings !== null && Number(savings) > 0 && (
                   <div className="flex items-center justify-between rounded-xl border border-[#22c55e]/30 bg-[#22c55e]/10 p-4">
                     <span className="flex items-center gap-2 text-sm font-semibold text-[#22c55e]">
                       <TrendingDown size={18} /> Potential savings
@@ -139,14 +145,27 @@ export function CartSheet({ open, onOpenChange }) {
                     active={recommended === "split"}
                     total={g(opt, ["split_total", "split_cost"]) ?? sumPlan(splitPlan)}
                     lines={normalizePlan(splitPlan)}
+                    note="Cheapest reliable vendor per material, covering your whole cart."
                   />
-                  <PlanCard
-                    title="Single sourcing"
-                    icon={Layers}
-                    active={recommended === "single"}
-                    total={g(singlePlan || {}, ["total", "cost", "single_total"])}
-                    lines={normalizePlan(g(singlePlan || {}, ["items", "lines"], singlePlan))}
-                  />
+                  {(() => {
+                    const covered = Number(g(singlePlan || {}, ["covered"], 0));
+                    const incomplete = covered > 0 && covered < cart.length;
+                    return (
+                      <PlanCard
+                        title="Single sourcing"
+                        icon={Layers}
+                        active={recommended === "single"}
+                        total={g(singlePlan || {}, ["total", "cost", "single_total"])}
+                        lines={normalizePlan(g(singlePlan || {}, ["items", "lines"], singlePlan))}
+                        note={
+                          incomplete
+                            ? `One vendor can only supply ${covered} of ${cart.length} items, so its total is not comparable.`
+                            : "One vendor for the whole order."
+                        }
+                        warn={incomplete}
+                      />
+                    );
+                  })()}
                 </div>
               </div>
             )}
@@ -154,6 +173,14 @@ export function CartSheet({ open, onOpenChange }) {
 
           {cart.length > 0 && (
             <div className="space-y-2 border-t border-white/10 pt-4">
+              <div className="flex items-center justify-between px-1 pb-1">
+                <span className="text-sm text-white/60">
+                  Estimated total <span className="text-white/35">(delivered)</span>
+                </span>
+                <span data-testid="cart-total" className="font-mono text-lg font-bold text-[#ff7a2f]">
+                  {formatINR(cartGrandTotal(cart))}
+                </span>
+              </div>
               <Button
                 data-testid="optimize-btn"
                 onClick={runOptimize}
@@ -200,7 +227,7 @@ function sumPlan(plan) {
   return t || undefined;
 }
 
-function PlanCard({ title, icon: Icon, active, total, lines }) {
+function PlanCard({ title, icon: Icon, active, total, lines, note, warn }) {
   return (
     <div
       className={`rounded-xl border p-4 ${
@@ -221,13 +248,16 @@ function PlanCard({ title, icon: Icon, active, total, lines }) {
           <span className="font-mono font-bold">{formatINR(total)}</span>
         )}
       </div>
+      {note && (
+        <p className={`mb-2 text-[11px] ${warn ? "text-[#f59e0b]" : "text-white/40"}`}>{note}</p>
+      )}
       {lines && lines.length > 0 && (
         <div className="space-y-1">
           {lines.map((l, i) => (
             <div key={i} className="flex justify-between text-xs text-white/60">
               <span>
                 {titleCase(l.material || l.name || "")}
-                {l.vendor ? ` — ${l.vendor}` : ""}
+                {l.vendor ? ` · ${l.vendor}` : ""}
               </span>
               <span className="font-mono">{formatINR(l.landed_price ?? l.price ?? l.total)}</span>
             </div>

@@ -45,6 +45,7 @@ function App() {
         <Toaster
           theme="dark"
           position="top-right"
+          closeButton
           toastOptions={{
             style: { background: "#171c22", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" },
           }}

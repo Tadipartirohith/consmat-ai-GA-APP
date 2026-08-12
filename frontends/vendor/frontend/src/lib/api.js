@@ -59,6 +59,9 @@ export const getVendorMe = () => api.get("/vendors/me");
 
 export const updateOffer = (offer) => api.put("/vendors/me/offers", offer);
 
+export const deleteOffer = (offerId) =>
+  api.delete(`/vendors/me/offers/${encodeURIComponent(offerId)}`);
+
 export const createOffer = (offer) => api.post("/vendors/me/offers", offer);
 
 export const getVendorOrders = () => api.get("/vendors/me/orders");

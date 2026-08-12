@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { checkout } from "@/lib/api";
-import { formatINR, titleCase } from "@/lib/format";
+import { formatINR, titleCase, cartLineTotal, cartGrandTotal } from "@/lib/format";
 import {
   Dialog,
   DialogContent,
@@ -32,11 +32,7 @@ export function CheckoutModal({ open, onOpenChange, optimizeResult, onDone }) {
   const [placing, setPlacing] = useState(false);
   const [placed, setPlaced] = useState(null);
 
-  const itemCount = cart.reduce((a, c) => a + Number(c.quantity || 0), 0);
-  const total = cart.reduce(
-    (a, c) => a + Number(c.price || 0) * Number(c.quantity || 0),
-    0
-  );
+  const total = cartGrandTotal(cart);
 
   const place = async () => {
     setPlacing(true);
@@ -100,7 +96,7 @@ export function CheckoutModal({ open, onOpenChange, optimizeResult, onDone }) {
               <DialogTitle className="font-head text-xl">
                 Checkout
                 <span className="ml-2 text-sm font-normal text-white/50">
-                  {cart.length} line{cart.length === 1 ? "" : "s"} · {itemCount} item{itemCount === 1 ? "" : "s"}
+                  {cart.length} item{cart.length === 1 ? "" : "s"}
                 </span>
               </DialogTitle>
             </DialogHeader>
@@ -109,9 +105,9 @@ export function CheckoutModal({ open, onOpenChange, optimizeResult, onDone }) {
               {cart.map((c) => (
                 <div key={c.id} className="flex justify-between text-white/70">
                   <span>
-                    {titleCase(c.material)} × {c.quantity}
+                    {titleCase(c.material)} × {c.quantity} {c.unit || ""}
                   </span>
-                  <span className="font-mono">{formatINR(Number(c.price || 0) * c.quantity)}</span>
+                  <span className="font-mono">{formatINR(cartLineTotal(c))}</span>
                 </div>
               ))}
               {total > 0 && (

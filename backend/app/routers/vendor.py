@@ -97,6 +97,15 @@ def update_offer(body: OfferBody, user: dict = Depends(require_role("vendor"))):
     return {"ok": True, "id": key}
 
 
+@router.delete("/vendors/me/offers/{offer_id}")
+def delete_offer(offer_id: str, user: dict = Depends(require_role("vendor"))):
+    v = store.vendors[user["vendor"]]
+    if offer_id in v["offers"]:
+        removed = v["offers"].pop(offer_id)
+        return {"ok": True, "id": offer_id, "name": removed.get("name")}
+    raise HTTPException(404, "Offer not found")
+
+
 @router.get("/vendors/me/orders")
 def vendor_orders(user: dict = Depends(require_role("vendor"))):
     vid = user["vendor"]

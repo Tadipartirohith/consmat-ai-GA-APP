@@ -108,6 +108,8 @@ export function VendorCard({ data, onAdd, index = 0, compact = false }) {
               unit,
               vendor,
               price: landed,
+              unit_price: perUnit,
+              logistics: logisticsCost,
             })
           }
           className="mt-4 w-full rounded-lg bg-[#ff7a2f] font-semibold text-black hover:bg-[#e66822]"

@@ -304,7 +304,8 @@ def _build_lines(items: list, loc: str, pq: int):
         grand += best["landed_price"]
         sugg.append({"material": store.materials[mid]["name"], "quantity": q,
                      "unit": store.materials[mid]["unit"], "vendor": best["vendor"],
-                     "landed_price": best["landed_price"]})
+                     "landed_price": best["landed_price"],
+                     "unit_price": best["price_per_unit"], "logistics": best["logistics_cost"]})
     return sugg, cards, grand
 
 

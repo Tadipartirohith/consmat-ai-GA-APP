@@ -98,6 +98,8 @@ export function ChatMode() {
         unit: it.unit || "units",
         vendor: it.vendor || it.vendor_name,
         price: it.landed_price ?? it.price,
+        unit_price: it.unit_price ?? it.price_per_unit,
+        logistics: it.logistics ?? it.logistics_cost ?? 0,
       }))
     );
   };
