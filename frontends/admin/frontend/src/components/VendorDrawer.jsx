@@ -10,7 +10,7 @@ function RatingOverride({ vendorId, current }) {
   const qc = useQueryClient();
   const [val, setVal] = useState("");
   const set = useMutation({
-    mutationFn: async (value) => (await api.put(`/admin/vendors/${vendorId}/rating-override`, { value })).data,
+    mutationFn: async (value) => (await api.put(`/moderation/vendors/${vendorId}/rating-override`, { value })).data,
     onSuccess: () => {
       toast.success("Vendor rating updated");
       qc.invalidateQueries({ queryKey: ["vendor", vendorId] });

@@ -397,6 +397,7 @@ function OrderDetailDialog({ order, updatedAt, onClose }) {
           orderId={g(order, ["order_id", "id", "orderId"])}
           targets={(() => {
             const arr = Array.isArray(items) ? items : [];
+            const oid = g(order, ["order_id", "id", "orderId"]);
             const vendors = new Map();
             const products = new Map();
             arr.forEach((it) => {
@@ -407,7 +408,8 @@ function OrderDetailDialog({ order, updatedAt, onClose }) {
               const mname = g(it, ["material", "name"]);
               if (mid && !products.has(mid)) products.set(mid, { kind: "product", id: mid, name: mname });
             });
-            return [...vendors.values(), ...products.values()];
+            const delivery = oid ? [{ kind: "delivery", id: oid, name: "Delivery experience" }] : [];
+            return [...delivery, ...vendors.values(), ...products.values()];
           })()}
         />
       </DialogContent>

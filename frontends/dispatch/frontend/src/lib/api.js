@@ -43,6 +43,10 @@ export const api = {
   complaintStatus: (id, status, note) =>
     client.post(`/support/complaints/${id}/status`, { status, note }).then((r) => r.data),
   supportMetrics: () => client.get("/support/metrics").then((r) => r.data),
+  // Ratings moderation (manager/admin)
+  modRatings: () => client.get("/moderation/ratings").then((r) => r.data),
+  modRatingsOverview: () => client.get("/moderation/ratings/overview").then((r) => r.data),
+  moderateRating: (id, patch) => client.put(`/moderation/ratings/${id}`, patch).then((r) => r.data),
   // Staff (manager/admin)
   staff: () => client.get("/admin/staff").then((r) => r.data),
   addStaff: (body) => client.post("/admin/staff", body).then((r) => r.data),

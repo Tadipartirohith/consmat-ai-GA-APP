@@ -2,9 +2,11 @@ import React, { useState } from "react";
 import { submitRating } from "@/lib/api";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Star, Loader2, Store, Package } from "lucide-react";
+import { Star, Loader2, Store, Package, Truck, LifeBuoy } from "lucide-react";
 import { titleCase } from "@/lib/format";
 import { toast } from "sonner";
+
+const KIND_ICON = { vendor: Store, product: Package, delivery: Truck, care: LifeBuoy };
 
 function StarPicker({ value, onChange }) {
   const [hover, setHover] = useState(0);
@@ -72,10 +74,12 @@ export function RateDialog({ open, onOpenChange, targets = [], orderId = null, o
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          {targets.map((t) => (
+          {targets.map((t) => {
+            const Icon = KIND_ICON[t.kind] || Package;
+            return (
             <div key={key(t)} className="rounded-lg border border-white/10 bg-[#0f1216] p-3">
               <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
-                {t.kind === "vendor" ? <Store size={15} className="text-[#ff7a2f]" /> : <Package size={15} className="text-[#ff7a2f]" />}
+                <Icon size={15} className="text-[#ff7a2f]" />
                 {titleCase(t.name)}
                 <span className="text-[10px] uppercase tracking-wider text-white/40">{t.kind}</span>
               </div>
@@ -87,7 +91,8 @@ export function RateDialog({ open, onOpenChange, targets = [], orderId = null, o
                 className="mt-2 w-full rounded-md border border-white/10 bg-[#171c22] px-3 py-1.5 text-sm text-white outline-none placeholder:text-white/30"
               />
             </div>
-          ))}
+            );
+          })}
           <Button data-testid="rate-submit" onClick={submit} disabled={busy} className="w-full bg-[#ff7a2f] font-semibold text-black hover:bg-[#e66822]">
             {busy ? <Loader2 size={16} className="mr-1.5 animate-spin" /> : <Star size={16} className="mr-1.5" />}
             Submit ratings

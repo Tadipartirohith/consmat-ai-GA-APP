@@ -21,8 +21,11 @@ def _rating_view(r: dict) -> dict:
     }
 
 
+KINDS = ("vendor", "product", "delivery", "care")
+
+
 class RatingBody(BaseModel):
-    kind: str                       # vendor | product
+    kind: str                       # vendor | product | delivery | care
     target_id: str
     stars: int
     comment: Optional[str] = ""
@@ -30,21 +33,26 @@ class RatingBody(BaseModel):
 
 
 @router.post("/ratings")
-def create_rating(body: RatingBody, user: dict = Depends(require_role("buyer", "vendor"))):
-    if body.kind not in ("vendor", "product"):
-        raise HTTPException(400, "kind must be 'vendor' or 'product'")
-    if user["role"] == "vendor" and body.kind != "product":
-        raise HTTPException(403, "Vendors can only rate products")
+def create_rating(body: RatingBody, user: dict = Depends(require_role("buyer"))):
+    # Only customers rate. Vendors can raise complaints, not ratings.
+    if body.kind not in KINDS:
+        raise HTTPException(400, f"kind must be one of {KINDS}")
     if not (1 <= int(body.stars) <= 5):
         raise HTTPException(400, "stars must be 1-5")
     if body.kind == "vendor":
         target = store.vendors.get(body.target_id)
-        tname = target["name"] if target else None
-    else:
+        if not target:
+            raise HTTPException(404, "Vendor not found")
+        tname = target["name"]
+    elif body.kind == "product":
         target = store.materials.get(body.target_id)
-        tname = target["name"] if target else None
-    if not target:
-        raise HTTPException(404, "Target not found")
+        if not target:
+            raise HTTPException(404, "Material not found")
+        tname = target["name"]
+    elif body.kind == "delivery":
+        tname = f"Delivery · {body.target_id}"
+    else:  # care
+        tname = f"Customer care · {body.target_id}"
     r = {
         "id": store.next_rating_id(), "kind": body.kind, "target_id": body.target_id,
         "target_name": tname, "stars": int(body.stars), "comment": (body.comment or "").strip(),
@@ -79,14 +87,28 @@ class ModerateBody(BaseModel):
     hidden: Optional[bool] = None
 
 
-@router.get("/admin/ratings")
-def admin_list_ratings(kind: Optional[str] = None, _=Depends(require_role("admin"))):
+MODERATORS = ("admin", "manager")
+
+
+@router.get("/moderation/ratings")
+def list_ratings_for_moderation(kind: Optional[str] = None, _=Depends(require_role(*MODERATORS))):
     items = store.ratings if not kind else [r for r in store.ratings if r["kind"] == kind]
     return [_rating_view(r) for r in items]
 
 
-@router.put("/admin/ratings/{rid}")
-def admin_moderate(rid: str, body: ModerateBody, _=Depends(require_role("admin"))):
+@router.get("/moderation/ratings/overview")
+def ratings_overview(_=Depends(require_role(*MODERATORS))):
+    def agg(kind):
+        rs = [r["stars"] for r in store.ratings if r["kind"] == kind and not r.get("hidden")]
+        return {"average": round(sum(rs) / len(rs), 1) if rs else None, "count": len(rs)}
+    hidden = sum(1 for r in store.ratings if r.get("hidden"))
+    return {"total": len(store.ratings), "hidden": hidden,
+            "vendor": agg("vendor"), "product": agg("product"),
+            "delivery": agg("delivery"), "care": agg("care")}
+
+
+@router.put("/moderation/ratings/{rid}")
+def admin_moderate(rid: str, body: ModerateBody, _=Depends(require_role(*MODERATORS))):
     r = store.get_rating(rid)
     if not r:
         raise HTTPException(404, "Rating not found")
@@ -106,8 +128,8 @@ class OverrideBody(BaseModel):
     value: Optional[float] = None   # None clears the override
 
 
-@router.put("/admin/vendors/{vendor_id}/rating-override")
-def vendor_override(vendor_id: str, body: OverrideBody, _=Depends(require_role("admin"))):
+@router.put("/moderation/vendors/{vendor_id}/rating-override")
+def vendor_override(vendor_id: str, body: OverrideBody, _=Depends(require_role(*MODERATORS))):
     v = store.vendors.get(vendor_id)
     if not v:
         raise HTTPException(404, "Vendor not found")
@@ -119,8 +141,8 @@ def vendor_override(vendor_id: str, body: OverrideBody, _=Depends(require_role("
     return {"id": vendor_id, "rating": avg, "override": v.get("rating_override")}
 
 
-@router.put("/admin/materials/{material_id}/rating-override")
-def material_override(material_id: str, body: OverrideBody, _=Depends(require_role("admin"))):
+@router.put("/moderation/materials/{material_id}/rating-override")
+def material_override(material_id: str, body: OverrideBody, _=Depends(require_role(*MODERATORS))):
     m = store.materials.get(material_id)
     if not m:
         raise HTTPException(404, "Material not found")

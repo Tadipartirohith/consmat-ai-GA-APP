@@ -41,7 +41,6 @@ import {
 } from "@/lib/api";
 import { formatINR, getOfferName, getOfferPrice, getOfferStock, getOfferCategory, getOfferImage, getOfferId } from "@/lib/format";
 import ImagePicker from "@/components/ImagePicker";
-import { RateProductsButton } from "@/components/RateProductsDialog";
 import { toast } from "sonner";
 
 const Thumb = ({ src, size = 34 }) => {
@@ -622,7 +621,6 @@ export const InventoryTable = ({ offers = [] }) => {
               <Download size={15} className="mr-1.5" /> Export
             </Button>
             {lowCount > 0 && <BulkRestockDialog offers={offers} threshold={threshold} onDone={refresh} />}
-            <RateProductsButton />
             <AddOfferDialog onAdded={refresh} />
           </div>
         </div>

@@ -301,6 +301,19 @@ class Store:
                 "order_id": None, "hidden": False,
                 "created_at": _now() - timedelta(days=self.rng.randint(1, 20)),
             })
+        # delivery + customer-care ratings from customers
+        misc = [("delivery", "ORD-1004", 4, "On time, driver was polite."),
+                ("delivery", "ORD-1006", 2, "Late by a few hours."),
+                ("care", "CMP-5001", 5, "Support sorted it quickly on call.")]
+        for kind, tid, stars, comment in misc:
+            self.ratings.append({
+                "id": self.next_rating_id(), "kind": kind, "target_id": tid,
+                "target_name": (f"Delivery · {tid}" if kind == "delivery" else f"Customer care · {tid}"),
+                "stars": stars, "comment": comment,
+                "by": {"role": "buyer", "name": "Ramesh Constructions", "email": "ramesh@build.in"},
+                "order_id": tid if kind == "delivery" else None, "hidden": False,
+                "created_at": _now() - timedelta(days=self.rng.randint(1, 15)),
+            })
 
     def _seed_complaints(self) -> None:
         placed = [o for o in self.orders if o["status"] in ("dispatched", "delivered")]

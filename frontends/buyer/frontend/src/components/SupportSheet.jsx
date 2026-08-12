@@ -1,12 +1,41 @@
 import React, { useEffect, useState } from "react";
-import { getComplaints, getComplaint, addComplaintMessage } from "@/lib/api";
+import { getComplaints, getComplaint, addComplaintMessage, submitRating } from "@/lib/api";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ComplaintDialog } from "@/components/ComplaintDialog";
-import { LifeBuoy, Plus, Send, Loader2, Package } from "lucide-react";
+import { LifeBuoy, Plus, Send, Loader2, Package, Star } from "lucide-react";
 import { toast } from "sonner";
+
+function CareRating({ complaintId }) {
+  const [stars, setStars] = useState(0);
+  const [hover, setHover] = useState(0);
+  const [done, setDone] = useState(false);
+  const rate = async (n) => {
+    setStars(n);
+    try {
+      await submitRating({ kind: "care", target_id: complaintId, stars: n });
+      setDone(true);
+      toast.success("Thanks for rating our support.");
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Couldn't submit rating.");
+    }
+  };
+  if (done) return <p className="text-xs text-emerald-400">Thanks — your support rating was recorded.</p>;
+  return (
+    <div className="rounded-lg border border-white/10 bg-[#0f1216] p-3">
+      <p className="mb-1.5 text-xs text-white/60">How was our customer care on this issue?</p>
+      <div className="flex gap-1" data-testid="care-rating">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button key={n} onMouseEnter={() => setHover(n)} onMouseLeave={() => setHover(0)} onClick={() => rate(n)}>
+            <Star size={20} className={(hover || stars) >= n ? "fill-[#ff7a2f] text-[#ff7a2f]" : "text-white/25"} />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const SEV = {
   low: "bg-white/10 text-white/70",
@@ -166,6 +195,10 @@ function ComplaintDetail({ id, onClose, onChanged }) {
                 </div>
               ))}
             </div>
+
+            {(c.thread || []).some((m) => ["operator", "manager", "admin"].includes(m.role)) && (
+              <CareRating complaintId={c.id} />
+            )}
 
             {!["resolved", "closed"].includes(c.status) && (
               <div className="flex items-center gap-2">

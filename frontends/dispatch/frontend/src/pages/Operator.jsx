@@ -19,6 +19,7 @@ import {
   Plus,
   UsersThree,
   Lifebuoy,
+  Star,
 } from "@phosphor-icons/react";
 import { api, stockLevel } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
@@ -26,8 +27,9 @@ import TicketCard from "@/components/TicketCard";
 import StockCard from "@/components/StockCard";
 import FleetTracking from "@/components/FleetTracking";
 import SupportDesk from "@/components/SupportDesk";
+import RatingsModeration from "@/components/RatingsModeration";
 
-const TABS = [
+const BASE_TABS = [
   { key: "queue", label: "Dispatch Queue", icon: ClipboardText },
   { key: "fleet", label: "Live Fleet", icon: Broadcast },
   { key: "support", label: "Customer Support", icon: Lifebuoy },
@@ -99,6 +101,11 @@ export default function Operator() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [tab, setTab] = useState("queue");
+  // Ratings moderation is manager-only (and admin).
+  const TABS =
+    user?.role === "manager" || user?.role === "admin"
+      ? [...BASE_TABS, { key: "ratings", label: "Ratings", icon: Star }]
+      : BASE_TABS;
 
   const [tickets, setTickets] = useState(null);
   const [stock, setStock] = useState(null);
@@ -581,6 +588,8 @@ export default function Operator() {
         {tab === "fleet" && <FleetTracking />}
 
         {tab === "support" && <SupportDesk />}
+
+        {tab === "ratings" && <RatingsModeration />}
 
         {tab === "stock" && (
           <>
