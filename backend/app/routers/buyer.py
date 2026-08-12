@@ -160,6 +160,37 @@ def _parse_area(t: str) -> tuple[float, int]:
     return total, clauses
 
 
+_FLOOR_LABEL = (r"(basement|cellar|stilt|lower\s*ground|upper\s*ground|ground|"
+                r"first|1st|second|2nd|third|3rd|fourth|4th|fifth|5th|sixth|6th|"
+                r"seventh|7th|eighth|8th|ninth|9th|tenth|10th|top|terrace|penthouse|parking)")
+_FLOOR_TITLE = {"1st": "First", "2nd": "Second", "3rd": "Third", "4th": "Fourth",
+                "5th": "Fifth", "6th": "Sixth", "7th": "Seventh", "8th": "Eighth",
+                "9th": "Ninth", "10th": "Tenth"}
+
+
+def _floor_title(label: str) -> str:
+    lab = re.sub(r"\s+", " ", label.strip().lower())
+    return _FLOOR_TITLE.get(lab, lab.title())
+
+
+def _parse_floor_areas(t: str) -> list[dict]:
+    """Explicitly labelled per-floor areas, e.g. 'ground floor is 1600 sqft and
+    1st floor is 1100 sqft'. When present, that sum IS the total built-up area and
+    must NOT be multiplied by a floor count again."""
+    specs, seen = [], set()
+    for m in re.finditer(_FLOOR_LABEL + r"\s*(?:floor|level|storey|story)?\b"
+                         r"[^0-9]{0,25}?(\d[\d,]*)\s*" + _AREA_UNIT, t):
+        area = float(m.group(2).replace(",", ""))
+        if area < 80:
+            continue
+        label = re.sub(r"\s+", " ", m.group(1).strip().lower())
+        if label in seen:
+            continue
+        seen.add(label)
+        specs.append({"label": label, "area": area})
+    return specs
+
+
 def parse_request(t: str, default_pq: int) -> dict:
     """Understand a whole request from one message (deterministic)."""
     req = {"materials": [], "qty": {}, "area": None, "floors": 1, "brick_walls": True,
@@ -180,16 +211,27 @@ def parse_request(t: str, default_pq: int) -> dict:
                    else "aggregate" if near == "gravel" else near)
             req["qty"][key] = float(mm.group(1).replace(",", ""))
     area_total, area_clauses = _parse_area(t)
+    floor_specs = _parse_floor_areas(t)
     fm = re.search(r"(\d+)\s*-?\s*(?:floors?|stor(?:eys?|ys?|ies)|levels?|flr)", t)
     if fm:
         req["floors"] = max(1, int(fm.group(1)))
     gm = re.search(r"\bg\s*\+\s*(\d+)", t)
     if gm:
         req["floors"] = int(gm.group(1)) + 1
-    if area_total:
-        # When several apartments/units are itemised, that sum is the per-floor
-        # area and the floor count multiplies it. A single area is taken as given.
+    if floor_specs:
+        # Each floor's area was given explicitly -> the sum is the TOTAL built-up
+        # area; do not multiply by a floor count again. Keep the per-floor list.
+        req["floors_list"] = floor_specs
+        req["area"] = sum(f["area"] for f in floor_specs)
+        req["floors"] = len(floor_specs)
+        req["enumerated"] = True
+    elif area_total:
+        # A single area (or per-apartment breakdown) that a floor count multiplies.
         req["area"] = area_total
+    # Underground/basement parking mentioned without its own area figure.
+    if re.search(r"under\s*ground|basement|parking|cellar|stilt", t) and not any(
+            f["label"] in ("parking", "basement", "stilt", "cellar") for f in floor_specs):
+        req["parking_no_area"] = True
     if re.search(r"no bricks?|without bricks?|rcc only|no masonry", t):
         req["brick_walls"] = False
     if re.search(r"\beverything\b|\ball (the )?materials?\b|full (list|bom)|entire|"
@@ -369,10 +411,32 @@ def ai_chat(body: ChatBody):
 
     # ---- Whole-project, single shot: area given -> full bill of materials ----
     if req["area"]:
-        total_sqft, bom = domain.compute_bom(req["area"], req["floors"], req["mult"],
-                                             req["brick_walls"], store.materials)
+        enumerated = bool(req.get("enumerated") and req.get("floors_list"))
+        if enumerated:
+            # Each floor area was given, so the sum IS the total (no re-multiply).
+            total_sqft = req["area"]
+            _, bom = domain.compute_bom(total_sqft, 1, req["mult"], req["brick_walls"], store.materials)
+        else:
+            total_sqft, bom = domain.compute_bom(req["area"], req["floors"], req["mult"],
+                                                 req["brick_walls"], store.materials)
         items = [(l["material"], l["quantity"]) for l in bom]
         sugg, cards, grand = _build_lines(items, loc, pq)
+
+        if enumerated:
+            parts = []
+            for f in req["floors_list"]:
+                _, fbom = domain.compute_bom(f["area"], 1, req["mult"], req["brick_walls"], store.materials)
+                fl = ", ".join(f"{l['name']} {l['quantity']} {l['unit']}" for l in fbom)
+                parts.append(f"• {_floor_title(f['label'])} floor ({int(f['area']):,} sq ft): {fl}")
+            floor_block = "\n".join(parts)
+            parking = ("\nNote: you mentioned underground parking but didn't give its area. Tell me the "
+                       "parking sq ft and I'll add it in.\n" if req.get("parking_no_area") else "")
+            lead = (f"Floor-by-floor material calculation for your {int(total_sqft):,} sq ft "
+                    f"{req['construction_type']} build ({req['floors']} floors):\n{floor_block}\n{parking}"
+                    f"Combined, from the cheapest reliable vendors with delivery included")
+            return {"reply": _list_reply(sugg, loc, grand, lead),
+                    "chips": ["Add all to cart"], "cards": cards, "suggestions": sugg}
+
         floor_txt = f"{req['floors']} floor{'s' if req['floors'] > 1 else ''}"
         lead = (f"Here's the full material list for a {int(total_sqft):,} sq ft {req['construction_type']} "
                 f"build across {floor_txt}. I've picked the cheapest reliable vendor for each item, "
