@@ -10,6 +10,7 @@ import TopProducts from "@/components/TopProducts";
 import SalesByCategory from "@/components/SalesByCategory";
 import InventoryTable from "@/components/InventoryTable";
 import OrdersList from "@/components/OrdersList";
+import ReviewsReceived from "@/components/ReviewsReceived";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -90,6 +91,7 @@ export default function Dashboard() {
                 <SalesByCategory orders={orders} offers={offers} />
               </div>
             )}
+            <ReviewsReceived vendorId={vendor.id} />
             <InventoryTable offers={offers} />
           </>
         )}

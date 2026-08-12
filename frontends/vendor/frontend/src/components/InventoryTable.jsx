@@ -305,6 +305,7 @@ const EditableRow = ({ offer, threshold, onSaved }) => {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(getOfferName(offer));
   const [category, setCategory] = useState(getOfferCategory(offer));
+  const [brand, setBrand] = useState(offer.brand || "");
   const [image, setImage] = useState(getOfferImage(offer));
   const [price, setPrice] = useState(getOfferPrice(offer));
   const [stock, setStock] = useState(getOfferStock(offer));
@@ -320,6 +321,7 @@ const EditableRow = ({ offer, threshold, onSaved }) => {
         id: getOfferId(offer),
         name: name.trim(),
         category: category.trim(),
+        brand: brand.trim(),
         image_url: image.trim(),
         price: Number(price),
         stock: Number(stock),
@@ -339,6 +341,7 @@ const EditableRow = ({ offer, threshold, onSaved }) => {
   const cancel = () => {
     setName(getOfferName(offer));
     setCategory(getOfferCategory(offer));
+    setBrand(offer.brand || "");
     setImage(getOfferImage(offer));
     setPrice(getOfferPrice(offer));
     setStock(getOfferStock(offer));
@@ -381,6 +384,13 @@ const EditableRow = ({ offer, threshold, onSaved }) => {
               onChange={(e) => setCategory(e.target.value)}
               data-testid={`offer-category-input-${rowKey}`}
               placeholder="Category"
+              className="h-7 min-w-[150px] bg-[#0f1216] border-white/10 text-xs text-[#94a3b8] focus-visible:ring-1 focus-visible:ring-[#ff7a2f]"
+            />
+            <Input
+              value={brand}
+              onChange={(e) => setBrand(e.target.value)}
+              data-testid={`offer-brand-input-${rowKey}`}
+              placeholder="Brand (e.g. UltraTech)"
               className="h-7 min-w-[150px] bg-[#0f1216] border-white/10 text-xs text-[#94a3b8] focus-visible:ring-1 focus-visible:ring-[#ff7a2f]"
             />
             <ImagePicker value={image} onChange={setImage} testidPrefix={`offer-image-${rowKey}`} size={28} compact />

@@ -3,6 +3,7 @@ import { LogOut, Store, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import ApiConfigDialog from "@/components/ApiConfigDialog";
+import { SupportButton } from "@/components/SupportSheet";
 
 export const Layout = ({ children, lowStockCount = 0 }) => {
   const { user, logout, isAuthenticated } = useAuth();
@@ -41,6 +42,7 @@ export const Layout = ({ children, lowStockCount = 0 }) => {
                 <span className="hidden sm:inline">&nbsp;low</span>
               </button>
             )}
+            {isAuthenticated && <SupportButton />}
             <ApiConfigDialog />
             {isAuthenticated && (
               <Button

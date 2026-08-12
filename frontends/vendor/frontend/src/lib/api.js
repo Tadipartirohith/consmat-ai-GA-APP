@@ -78,4 +78,11 @@ export const raiseComplaint = (payload) =>
 export const getMaterials = () => api.get("/materials").then((r) => r.data);
 export const submitRating = (payload) => api.post("/ratings", payload).then((r) => r.data);
 
+export const getComplaints = () => api.get("/support/complaints").then((r) => r.data);
+export const getComplaint = (id) => api.get(`/support/complaints/${id}`).then((r) => r.data);
+export const addComplaintMessage = (id, note) =>
+  api.post(`/support/complaints/${id}/messages`, { note }).then((r) => r.data);
+export const getRatings = (kind, targetId) =>
+  api.get("/ratings", { params: { kind, target_id: targetId } }).then((r) => r.data);
+
 export default api;
