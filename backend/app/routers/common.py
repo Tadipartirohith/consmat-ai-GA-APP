@@ -1,6 +1,8 @@
 """Auth + catalog endpoints shared by all apps."""
 from __future__ import annotations
 
+import os
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
@@ -8,6 +10,23 @@ from ..auth import verify_password, make_token, current_user
 from ..store import store
 
 router = APIRouter()
+
+
+@router.get("/ai/status")
+def ai_status():
+    """Whether the chat is running on a real LLM or the deterministic stub.
+    Set AI_PROVIDER + AI_API_KEY (+ optional AI_MODEL) in .env and restart to go live."""
+    provider = os.environ.get("AI_PROVIDER", "stub").lower()
+    key_set = bool(os.environ.get("AI_API_KEY", "").strip())
+    live = provider in ("openai", "anthropic") and key_set
+    return {
+        "live": live,
+        "mode": provider if live else "stub",
+        "engine": "real LLM (understanding only; prices from tools)" if live else
+                  "deterministic parser (no key, offline)",
+        "model": os.environ.get("AI_MODEL", "").strip() or ("provider default" if live else None),
+        "key_configured": key_set,
+    }
 
 
 class LoginBody(BaseModel):

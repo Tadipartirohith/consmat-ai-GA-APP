@@ -263,12 +263,27 @@ def llm_extract(message: str):
     if provider not in ("openai", "anthropic") or not key:
         return None
     schema = (
-        "You extract a construction-materials purchase request as STRICT JSON only. Keys: "
-        "materials (array of {material: one of [cement,steel,sand,aggregate,bricks], quantity: number|null}), "
-        "area (number|null = built-up sq ft per floor), floors (integer|null), "
-        "construction_type (economy|standard|premium|null), brick_walls (boolean|null), "
-        "location (one of [ibrahimpatnam,medchal,sangareddy,bhongir,ghatkesar,hyderabad]|null), "
-        "intent (cheap|quality|balanced|null), wants_all (boolean). Output JSON only."
+        "You are the understanding layer of a construction-materials assistant. You do NOT invent "
+        "prices, stock or vendors — those come from the app's tools. Read the customer's message and "
+        "output STRICT JSON only with these keys:\n"
+        "  materials: array of {material: one of [cement,steel,sand,aggregate,bricks], quantity: number|null}\n"
+        "  floor_areas: array of {label: string (e.g. 'ground','first','basement','parking'), area: number sq ft}"
+        " when the customer states each floor's area separately; else null\n"
+        "  area: number|null  (a single built-up sq ft PER FLOOR, used with floors, when not itemised per floor)\n"
+        "  floors: integer|null  (number of floors/storeys)\n"
+        "  parking: {present: boolean, area: number|null}  (underground/basement/stilt parking; area null if not stated)\n"
+        "  construction_type: economy|standard|premium|null  (villa/luxury -> premium; do NOT assume silently, ask if unsure)\n"
+        "  brick_walls: boolean|null\n"
+        "  location: one of [ibrahimpatnam,medchal,sangareddy,bhongir,ghatkesar,hyderabad]|null\n"
+        "  intent: cheap|quality|balanced|null\n"
+        "  brand: string|null  (a specific brand the customer asked for, e.g. UltraTech, ACC)\n"
+        "  per_floor_breakdown: boolean  (true if they asked for a calculation for each floor)\n"
+        "  wants_all: boolean\n"
+        "  ready: boolean  (true only if you have enough to compute a sensible bill)\n"
+        "  clarify: array of short questions to ask the customer when something is missing or ambiguous "
+        "(e.g. parking mentioned with no area, quality tier unclear, no floor count/area). Empty when ready.\n"
+        "Rules: if floor_areas are given, that sum IS the total (never multiply by floors again). "
+        "Prefer asking one or two crisp questions over guessing. Output JSON only."
     )
     try:
         import httpx
@@ -287,7 +302,7 @@ def llm_extract(message: str):
         else:
             r = httpx.post("https://api.anthropic.com/v1/messages",
                            headers={"x-api-key": key, "anthropic-version": "2023-06-01"},
-                           json={"model": model, "max_tokens": 400, "system": schema,
+                           json={"model": model, "max_tokens": 700, "system": schema,
                                  "messages": [{"role": "user", "content": message}]},
                            timeout=15)
             r.raise_for_status()
@@ -309,10 +324,24 @@ def merge_llm(req: dict, slots) -> tuple[dict, Optional[str]]:
             if isinstance(m, dict) and m.get("quantity"):
                 req["qty"][mid] = float(m["quantity"])
     req["materials"] = mats
-    if slots.get("area"):
-        req["area"] = float(slots["area"])
-    if slots.get("floors"):
-        req["floors"] = int(slots["floors"])
+    # Explicit per-floor areas -> the sum is the total; never multiply by floors again.
+    fa = slots.get("floor_areas")
+    if isinstance(fa, list) and fa:
+        specs = [{"label": str(f.get("label", "floor")).lower(), "area": float(f["area"])}
+                 for f in fa if isinstance(f, dict) and f.get("area")]
+        if specs:
+            req["floors_list"] = specs
+            req["area"] = sum(s["area"] for s in specs)
+            req["floors"] = len(specs)
+            req["enumerated"] = True
+    if not req.get("enumerated"):
+        if slots.get("area"):
+            req["area"] = float(slots["area"])
+        if slots.get("floors"):
+            req["floors"] = int(slots["floors"])
+    park = slots.get("parking")
+    if isinstance(park, dict) and park.get("present") and not park.get("area"):
+        req["parking_no_area"] = True
     if slots.get("construction_type") in ("economy", "standard", "premium"):
         req["construction_type"] = slots["construction_type"]
         req["mult"] = {"economy": 0.9, "standard": 1.0, "premium": 1.18}[slots["construction_type"]]
@@ -324,6 +353,10 @@ def merge_llm(req: dict, slots) -> tuple[dict, Optional[str]]:
         req["pq"] = 5
     elif slots.get("intent") == "quality":
         req["pq"] = 90
+    # Clarifying questions the model wants to ask before computing.
+    clarify = [str(q).strip() for q in (slots.get("clarify") or []) if str(q).strip()]
+    if clarify and not slots.get("ready", True):
+        req["clarify"] = clarify[:4]
     return req, slots.get("location")
 
 
@@ -388,6 +421,14 @@ def ai_chat(body: ChatBody):
     if loc == "ghatkesar":
         loc = "bhongir"
     pq = req["pq"]
+
+    # When a real LLM is enabled and it decides key details are missing/ambiguous,
+    # ask the customer instead of guessing (stub mode never sets this).
+    if req.get("clarify"):
+        return {"reply": "Happy to spec this out — a couple of quick things so I get it right:\n"
+                         + "\n".join(f"• {q}" for q in req["clarify"]),
+                "chips": [q for q in req["clarify"] if len(q) <= 40][:4],
+                "cards": [], "suggestions": []}
 
     if req["greet"]:
         return {"reply": "Hi, I'm your Consmat procurement assistant. Tell me what you're building in "
