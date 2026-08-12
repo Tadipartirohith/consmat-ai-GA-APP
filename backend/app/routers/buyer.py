@@ -48,11 +48,12 @@ def _why(rows, r) -> str:
     return f"{r['distance_km']}km delivery + {q:.1f}★ quality"
 
 
-def match_cards(material_id: str, quantity: float, location: str, pq: int) -> list[dict]:
+def match_cards(material_id: str, quantity: float, location: str, pq: int,
+                include_oos: bool = False) -> list[dict]:
     m = store.materials[material_id]
     qty = quantity or m["qty_hint"]
     rows = domain.rank_vendors(store.offers_for(material_id), qty, store.dest(location),
-                               pq, material_id, store.pricing)
+                               pq, material_id, store.pricing, include_oos=include_oos)
     out = []
     for r in rows:
         out.append({
@@ -62,7 +63,8 @@ def match_cards(material_id: str, quantity: float, location: str, pq: int) -> li
             "quality": r["quality"], "warehouse": r["warehouse_name"],
             "distance": r["distance_km"], "why": _why(rows, r),
             "price_per_unit": r["unit_price"], "rank": r["rank"], "in_stock": r["in_stock"],
-            "stock": r["stock"], "credit": r["credit"], "isi": r["isi"], "tier": r["tier"],
+            "stock": r["stock"], "out_of_stock": r.get("out_of_stock", False),
+            "credit": r["credit"], "isi": r["isi"], "tier": r["tier"],
         })
     return out
 
@@ -80,8 +82,10 @@ def match(body: MatchBody):
     mid = resolve_material(body.material)
     if not mid:
         return {"vendors": [], "results": []}
-    cards = match_cards(mid, body.quantity or store.materials[mid]["qty_hint"],
-                        body.location, body.price_quality)
+    # Shop browsing: show every vendor that carries this material, including
+    # out-of-stock ones (flagged) so the UI can grey them out.
+    cards = match_cards(mid, body.quantity or 1, body.location, body.price_quality,
+                        include_oos=True)
     return {"material": store.materials[mid]["name"], "quantity": body.quantity,
             "location": body.location, "vendors": cards, "results": cards}
 

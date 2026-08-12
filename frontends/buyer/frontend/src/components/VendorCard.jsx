@@ -36,16 +36,22 @@ export function VendorCard({
   const perUnit = pick(data, ["price_per_unit", "unit_price", "rate"]);
   const stock = pick(data, ["stock", "available", "in_stock_qty"]);
 
-  // Surface stock only when it matters: running low, or can't cover the order.
-  const cannotCover = stock != null && target > 0 && stock < target;
-  const showStock = stock != null && (stock <= 50 || cannotCover);
-  const maxAlloc = stock != null ? stock : target || undefined;
+  // Stock states. Show a badge only when it matters (out, low, or can't cover).
+  const oos = data?.out_of_stock === true || (stock != null && stock <= 0);
+  const cannotCover = !oos && stock != null && target > 0 && stock < target;
+  const low = !oos && stock != null && (stock <= 50 || cannotCover);
+  const maxAlloc = oos ? 0 : stock != null ? stock : target || undefined;
   const lineTotal = allocation > 0 ? (Number(perUnit) || 0) * allocation + (Number(logisticsCost) || 0) : 0;
 
   return (
     <div
       data-testid="vendor-card"
-      className="group relative flex flex-col rounded-xl border border-white/10 bg-[#171c22] p-5 shadow-[0_8px_30px_rgb(0,0,0,0.5)] transition-transform duration-200 hover:-translate-y-1 hover:border-[#ff7a2f]/50 animate-fade-up"
+      data-oos={oos ? "true" : "false"}
+      className={`group relative flex flex-col rounded-xl border p-5 shadow-[0_8px_30px_rgb(0,0,0,0.5)] transition-transform duration-200 animate-fade-up ${
+        oos
+          ? "border-white/10 bg-[#171c22] opacity-60 grayscale"
+          : "border-white/10 bg-[#171c22] hover:-translate-y-1 hover:border-[#ff7a2f]/50"
+      }`}
       style={{ animationDelay: `${index * 60}ms` }}
     >
       <div className="flex items-start justify-between gap-3">
@@ -86,17 +92,21 @@ export function VendorCard({
             </>
           )}
         </div>
-        {showStock && (
+        {oos ? (
           <span
             data-testid="vendor-stock"
-            className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold ${
-              cannotCover ? "bg-[#f59e0b]/15 text-[#f59e0b]" : "bg-white/5 text-white/60"
-            }`}
+            className="flex items-center gap-1 rounded-md bg-white/10 px-2 py-1 text-xs font-semibold text-white/60"
           >
-            {cannotCover && <AlertTriangle size={12} />}
-            {cannotCover ? `Only ${stock} ${unit} left` : `${stock} ${unit} in stock`}
+            Out of stock
           </span>
-        )}
+        ) : low ? (
+          <span
+            data-testid="vendor-stock"
+            className="flex items-center gap-1 rounded-md bg-[#f59e0b]/15 px-2 py-1 text-xs font-semibold text-[#f59e0b]"
+          >
+            <AlertTriangle size={12} /> Only {stock} {unit} available
+          </span>
+        ) : null}
       </div>
 
       {!allocMode && (materialCost !== undefined || logisticsCost !== undefined) && (
@@ -140,32 +150,40 @@ export function VendorCard({
 
       {allocMode ? (
         <div className="mt-4 border-t border-white/10 pt-3">
-          <label className="mb-1.5 block text-[10px] uppercase tracking-[0.2em] text-white/40">
-            Buy from this vendor ({unit})
-          </label>
-          <div className="flex items-center gap-2">
-            <Input
-              data-testid="vendor-alloc-input"
-              type="number"
-              min="0"
-              max={maxAlloc}
-              value={allocation || ""}
-              onChange={(e) => {
-                let v = Math.max(0, Number(e.target.value) || 0);
-                if (stock != null) v = Math.min(v, stock);
-                onAllocChange?.(v);
-              }}
-              placeholder="0"
-              className="h-9 border-white/10 bg-[#0f1216] text-center"
-            />
-            <span className="w-10 shrink-0 text-xs text-white/40">{unit}</span>
-          </div>
-          {allocation > 0 && (
-            <p className="mt-2 text-right text-sm">
-              <span className="text-white/50">Subtotal </span>
-              <span className="font-mono font-bold text-[#ff7a2f]">{formatINR(lineTotal)}</span>
-              <span className="text-[11px] text-white/40"> incl. delivery</span>
+          {oos ? (
+            <p className="text-xs text-white/40" data-testid="vendor-oos-note">
+              Out of stock right now. Ordering reopens once this vendor restocks.
             </p>
+          ) : (
+            <>
+              <label className="mb-1.5 block text-[10px] uppercase tracking-[0.2em] text-white/40">
+                Buy from this vendor ({unit})
+              </label>
+              <div className="flex items-center gap-2">
+                <Input
+                  data-testid="vendor-alloc-input"
+                  type="number"
+                  min="0"
+                  max={maxAlloc}
+                  value={allocation || ""}
+                  onChange={(e) => {
+                    let v = Math.max(0, Number(e.target.value) || 0);
+                    if (stock != null) v = Math.min(v, stock);
+                    onAllocChange?.(v);
+                  }}
+                  placeholder="0"
+                  className="h-9 border-white/10 bg-[#0f1216] text-center"
+                />
+                <span className="w-10 shrink-0 text-xs text-white/40">{unit}</span>
+              </div>
+              {allocation > 0 && (
+                <p className="mt-2 text-right text-sm">
+                  <span className="text-white/50">Subtotal </span>
+                  <span className="font-mono font-bold text-[#ff7a2f]">{formatINR(lineTotal)}</span>
+                  <span className="text-[11px] text-white/40"> incl. delivery</span>
+                </p>
+              )}
+            </>
           )}
         </div>
       ) : (

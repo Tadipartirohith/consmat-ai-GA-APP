@@ -37,10 +37,14 @@ export function VendorResults({ cards = [], onAdd, target = 0, unit = "units" })
   // Reset allocations whenever a fresh result set arrives.
   useEffect(() => setAlloc({}), [cards, target]);
 
-  const view = useMemo(() => [...cards].sort(sorters[sort] || sorters.price_asc), [cards, sort]);
+  const oosOf = (c) => (c.out_of_stock || (c.stock != null && c.stock <= 0) ? 1 : 0);
+  const view = useMemo(
+    () => [...cards].sort((a, b) => oosOf(a) - oosOf(b) || (sorters[sort] || sorters.price_asc)(a, b)),
+    [cards, sort]
+  );
 
   const material = cards[0]?.material || "";
-  const allocMode = target > 0;
+  const showTracker = target > 0; // tracker + auto-split need a planning quantity
 
   const allocated = Object.values(alloc).reduce((a, q) => a + (Number(q) || 0), 0);
   const remaining = Math.max(0, target - allocated);
@@ -123,7 +127,7 @@ export function VendorResults({ cards = [], onAdd, target = 0, unit = "units" })
       </div>
 
       {/* Allocation tracker */}
-      {allocMode && (
+      {showTracker && (
         <div
           data-testid="alloc-tracker"
           className="mb-4 rounded-xl border border-white/10 bg-[#171c22] p-4"
@@ -185,16 +189,15 @@ export function VendorResults({ cards = [], onAdd, target = 0, unit = "units" })
             key={vidOf(c) || i}
             data={c}
             index={i}
-            allocMode={allocMode}
+            allocMode
             allocation={Number(alloc[vidOf(c)]) || 0}
             onAllocChange={(q) => setOne(vidOf(c), q)}
             target={target}
-            onAdd={allocMode ? undefined : onAdd}
           />
         ))}
       </div>
 
-      {allocMode && (
+      {(
         <div className="sticky bottom-0 mt-4 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-[#0f1216]/95 p-3 backdrop-blur">
           <span className="text-sm text-white/60">
             {allocated > 0 ? (

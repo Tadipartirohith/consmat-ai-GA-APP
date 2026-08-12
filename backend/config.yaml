@@ -170,7 +170,7 @@ vendors:
     gstin: "36AAUB3456P3P1"
     warehouse: hub
     approved: true
-    offers: { cement: {price: 432, stock: 5000}, steel: {price: 63800, stock: 120}, bricks: {price: 8.5, stock: 60000} }
+    offers: { cement: {price: 432, stock: 0}, steel: {price: 63800, stock: 120}, bricks: {price: 8.5, stock: 60000} }
   - id: v_metro
     name: "Metro Steel & Cement"
     tier: Distributor

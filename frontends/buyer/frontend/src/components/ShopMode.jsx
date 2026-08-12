@@ -16,7 +16,7 @@ export function ShopMode() {
   const [query, setQuery] = useState("");
 
   const [selected, setSelected] = useState(null);
-  const [quantity, setQuantity] = useState("");
+  const [quantity, setQuantity] = useState(""); // optional planning quantity (target)
   const [results, setResults] = useState(null);
   const [matching, setMatching] = useState(false);
 
@@ -41,40 +41,37 @@ export function ShopMode() {
   const unit = selected?.unit || selected?.uom || "units";
   const matName = selected?.name || selected?.material || selected?.title;
 
-  // Price against the quantity the BUYER enters (no preset). Debounced so typing
-  // "500" doesn't fire a request per keystroke.
+  // Load every vendor for the picked material right away (like browsing a product's
+  // sellers). Per-unit price + stock don't depend on quantity, so no re-fetch when
+  // the buyer changes how much they need.
   useEffect(() => {
-    if (!selected || !(qtyNum > 0)) {
+    if (!selected) {
       setResults(null);
-      setMatching(false);
       return;
     }
     let alive = true;
     setMatching(true);
-    const t = setTimeout(async () => {
-      try {
-        const data = await match({ material: matName, quantity: qtyNum, location, price_quality: priceQuality });
+    match({ material: matName, quantity: 1, location, price_quality: priceQuality })
+      .then((data) => {
         if (!alive) return;
         const cards = Array.isArray(data) ? data : data?.vendors || data?.matches || data?.results || [];
         setResults(cards);
-      } catch (e) {
+      })
+      .catch(() => {
         if (alive) {
-          toast.error("Match failed. Backend not reachable.");
+          toast.error("Couldn't load vendors. Backend not reachable.");
           setResults([]);
         }
-      } finally {
-        if (alive) setMatching(false);
-      }
-    }, 400);
+      })
+      .finally(() => alive && setMatching(false));
     return () => {
       alive = false;
-      clearTimeout(t);
     };
-  }, [selected, qtyNum, location, priceQuality, matName]);
+  }, [selected, location, priceQuality, matName]);
 
   const openMaterial = (mat) => {
     setSelected(mat);
-    setQuantity(""); // leave the quantity for the buyer to enter
+    setQuantity("");
     setResults(null);
   };
 
@@ -103,45 +100,40 @@ export function ShopMode() {
         <div className="mb-4">
           <h2 className="font-head text-2xl font-bold tracking-tight">{titleCase(matName || "Matches")}</h2>
           <p className="text-sm text-white/50">
-            Enter how much you need and we'll price the best vendors for {titleCase(location)}.
+            Vendors supplying {titleCase(matName || "this material")}, delivered to {titleCase(location)}. Pick
+            how much to buy from each.
           </p>
         </div>
 
-        {/* Buyer-set quantity */}
+        {/* Optional planning quantity — drives the tracker + auto-split */}
         <div className="mb-5 max-w-xs">
           <label className="mb-1.5 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-white/40">
-            <Ruler size={12} /> Quantity you need ({unit})
+            <Ruler size={12} /> How much do you need? (optional)
           </label>
           <div className="flex items-center gap-2">
             <Input
               data-testid="shop-quantity"
               type="number"
               min="1"
-              autoFocus
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
-              placeholder={`e.g. 500 ${unit}`}
+              placeholder={`e.g. 100 ${unit}`}
               className="border-white/10 bg-[#171c22]"
             />
             <span className="shrink-0 text-sm text-white/40">{unit}</span>
           </div>
         </div>
 
-        {!(qtyNum > 0) ? (
-          <EmptyState
-            icon={Ruler}
-            text={`Enter the quantity of ${titleCase(matName || "material")} you need (in ${unit}) to see delivered vendor prices.`}
-          />
-        ) : matching ? (
+        {matching ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {[0, 1, 2].map((i) => (
               <Skeleton key={i} className="h-64 rounded-xl bg-[#171c22]" />
             ))}
           </div>
         ) : results && results.length > 0 ? (
-          <VendorResults cards={results} onAdd={addToCart} target={qtyNum} unit={unit} />
+          <VendorResults cards={results} onAdd={addToCart} target={qtyNum > 0 ? qtyNum : 0} unit={unit} />
         ) : (
-          <EmptyState text="No vendor matches returned for that quantity." />
+          <EmptyState text="No vendors carry this material yet." />
         )}
       </div>
     );
@@ -152,7 +144,7 @@ export function ShopMode() {
       <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 className="font-head text-2xl font-bold tracking-tight">Shop materials</h2>
-          <p className="text-sm text-white/50">Pick a material, then enter the quantity you need.</p>
+          <p className="text-sm text-white/50">Pick a material to see every vendor and their prices.</p>
         </div>
         <div className="relative w-full sm:w-72">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />

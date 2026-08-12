@@ -27,15 +27,20 @@ def value_score(landed: float, quality: float, pq: float) -> float:
 
 
 def rank_vendors(offers: list[dict], quantity: float, dest: dict, pq_pct: float,
-                 material: str, cfg: dict) -> list[dict]:
-    """offers: [{vendor..., unit_price, stock, wh(dict)}]. Returns ranked rows."""
+                 material: str, cfg: dict, include_oos: bool = False) -> list[dict]:
+    """offers: [{vendor..., unit_price, stock, wh(dict)}]. Returns ranked rows.
+
+    include_oos=True keeps out-of-stock vendors in the list (flagged and pushed to
+    the bottom) so the shop can show them greyed. Pricing/AI paths leave it False so
+    an out-of-stock vendor is never suggested or ordered."""
     pq = pq_pct / 100.0
     gate = cfg["quality_gate"]
     rows = []
     for o in offers:
         if not o.get("approved", True):
             continue
-        if o["stock"] <= 0:
+        oos = o["stock"] <= 0
+        if oos and not include_oos:
             continue
         if o["quality"] < gate:
             continue
@@ -47,9 +52,9 @@ def rank_vendors(offers: list[dict], quantity: float, dest: dict, pq_pct: float,
             **o, "distance_km": km, "logistics_cost": round(logi, 2),
             "material_cost": round(mat, 2), "landed_cost": round(landed, 2),
             "value_score": value_score(landed, o["quality"], pq),
-            "in_stock": o["stock"] >= quantity,
+            "in_stock": o["stock"] >= quantity, "out_of_stock": oos,
         })
-    rows.sort(key=lambda r: r["value_score"])
+    rows.sort(key=lambda r: (r["out_of_stock"], r["value_score"]))
     for i, r in enumerate(rows):
         r["rank"] = i + 1
     return rows
