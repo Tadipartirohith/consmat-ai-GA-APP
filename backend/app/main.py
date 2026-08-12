@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import cfg
-from .routers import common, buyer, vendor, admin, operator
+from .routers import common, buyer, vendor, admin, operator, support
 
 logging.basicConfig(level=logging.INFO)
 
@@ -23,7 +23,7 @@ _allowed_origins = (_c.get("deployment") or {}).get("allowed_origins") or ["*"]
 app.add_middleware(CORSMiddleware, allow_origins=_allowed_origins, allow_methods=["*"],
                    allow_headers=["*"], allow_credentials=False)
 
-for r in (common.router, buyer.router, vendor.router, admin.router, operator.router):
+for r in (common.router, buyer.router, vendor.router, admin.router, operator.router, support.router):
     app.include_router(r, prefix=PREFIX)
 
 

@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 
-from ..auth import require_role
+from ..auth import require_role, hash_password
 from ..store import store
 from ..serializers import admin_order, admin_vendor_summary, admin_vendor_detail
 
@@ -160,6 +160,53 @@ def bulk_approve(body: BulkBody, _=Depends(require_role("admin"))):
                 v["quality"] = 3.8
             n += 1
     return {"approved": n}
+
+
+# ------------------------------------------------------------- staff --------
+def _staff_view(u: dict) -> dict:
+    return {"email": u["email"], "name": u["name"], "role": u["role"]}
+
+
+@router.get("/admin/staff")
+def list_staff(_=Depends(require_role("admin", "manager"))):
+    return [_staff_view(u) for u in store.users.values() if u["role"] in ("operator", "manager")]
+
+
+class StaffBody(BaseModel):
+    name: str
+    email: str
+    role: str = "operator"          # operator | manager
+    password: Optional[str] = None
+
+
+@router.post("/admin/staff")
+def add_staff(body: StaffBody, user=Depends(require_role("admin", "manager"))):
+    role = body.role if body.role in ("operator", "manager") else "operator"
+    if user["role"] == "manager":       # managers can only add operators, not peers/admins
+        role = "operator"
+    email = body.email.strip().lower()
+    if not email or not body.name.strip():
+        raise HTTPException(400, "Name and email are required")
+    if email in store.users:
+        raise HTTPException(409, "That email already exists")
+    pw = body.password or store.cfg["demo_password"]
+    store.users[email] = {
+        "id": email.split("@")[0], "email": email, "name": body.name.strip(),
+        "role": role, "vendor": None, "location": "hyderabad",
+        "password_hash": hash_password(pw),
+    }
+    return _staff_view(store.users[email])
+
+
+@router.delete("/admin/staff/{email}")
+def remove_staff(email: str, user=Depends(require_role("admin", "manager"))):
+    u = store.users.get(email.lower())
+    if not u or u["role"] not in ("operator", "manager"):
+        raise HTTPException(404, "Staff member not found")
+    if user["role"] == "manager" and u["role"] != "operator":
+        raise HTTPException(403, "Managers can only remove operators")
+    store.users.pop(email.lower(), None)
+    return {"removed": email, "name": u["name"]}
 
 
 @router.get("/admin/logistics-config")

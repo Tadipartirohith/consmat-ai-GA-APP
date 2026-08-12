@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { LayoutDashboard, Store, ReceiptText, Truck, LogOut, Menu, HardHat, ChevronRight } from "lucide-react";
+import { LayoutDashboard, Store, ReceiptText, Truck, LifeBuoy, LogOut, Menu, HardHat, ChevronRight } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 
@@ -8,6 +8,7 @@ const NAV = [
   { to: "/admin", label: "Overview", icon: LayoutDashboard, end: true },
   { to: "/admin/vendors", label: "Vendors", icon: Store },
   { to: "/admin/orders", label: "Orders", icon: ReceiptText },
+  { to: "/admin/support", label: "Support", icon: LifeBuoy },
   { to: "/admin/logistics", label: "Logistics Rules", icon: Truck },
 ];
 
@@ -15,6 +16,7 @@ const TITLES = {
   "/admin": "Operations Overview",
   "/admin/vendors": "Vendor Management",
   "/admin/orders": "Recent Orders",
+  "/admin/support": "Customer Support & Issues",
   "/admin/logistics": "Logistics Rules",
 };
 

@@ -9,6 +9,7 @@ import Overview from "@/pages/Overview";
 import Vendors from "@/pages/Vendors";
 import Orders from "@/pages/Orders";
 import Logistics from "@/pages/Logistics";
+import Support from "@/pages/Support";
 
 function FullScreenLoader() {
   return (
@@ -46,6 +47,7 @@ function App() {
               <Route index element={<Overview />} />
               <Route path="vendors" element={<Vendors />} />
               <Route path="orders" element={<Orders />} />
+              <Route path="support" element={<Support />} />
               <Route path="logistics" element={<Logistics />} />
             </Route>
             <Route path="*" element={<Navigate to="/admin" replace />} />

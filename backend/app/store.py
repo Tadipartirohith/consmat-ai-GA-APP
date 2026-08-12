@@ -77,8 +77,11 @@ class Store:
         self.orders: list[dict] = []
         self.views: list[dict] = []
         self.reorders: list[dict] = []
+        self.complaints: list[dict] = []
         self._seq = 1000
+        self._cseq = 5000
         self._seed_orders(c["app"].get("seed_orders", 12))
+        self._seed_complaints()
 
     # --------------------------------------------------------- helpers -------
     def offers_for(self, material: str) -> list[dict]:
@@ -182,6 +185,68 @@ class Store:
 
     def get_order(self, oid: str) -> dict | None:
         return next((o for o in self.orders if o["id"] == oid or str(o["seq"]) == str(oid)), None)
+
+    # ---------------------------------------------------- complaints ---------
+    def next_complaint_id(self) -> str:
+        self._cseq += 1
+        return f"CMP-{self._cseq}"
+
+    def order_snapshot(self, o: dict) -> dict:
+        """Frozen order context attached to an order-based complaint."""
+        vendors = sorted({it["vendor_name"] for it in o["items"]})
+        return {
+            "order_id": o["id"], "status": o["status"], "total": o["total"],
+            "placed_at": iso(o["created_at"]), "address": o.get("address", ""),
+            "buyer": {"name": o["buyer_name"], "phone": o.get("buyer_phone", ""),
+                      "email": o.get("buyer_email", "")},
+            "vendors": vendors,
+            "items": [{"name": it["name"], "quantity": it["quantity"], "unit": it["unit"],
+                       "vendor": it["vendor_name"], "amount": it["landed_cost"]} for it in o["items"]],
+        }
+
+    def create_complaint(self, c: dict) -> dict:
+        with _LOCK:
+            self.complaints.insert(0, c)
+            return c
+
+    def get_complaint(self, cid: str) -> dict | None:
+        return next((c for c in self.complaints if c["id"] == cid), None)
+
+    def _seed_complaints(self) -> None:
+        placed = [o for o in self.orders if o["status"] in ("dispatched", "delivered")]
+        samples = [
+            ("Delivery running late", "The truck hasn't arrived and the ETA has passed. Need an update.",
+             "high", "in_progress", "operator", "delivery"),
+            ("Short quantity received", "Received fewer bags than ordered. Please reconcile.",
+             "critical", "escalated", "manager", "vendor"),
+            ("Damaged bags on delivery", "A few cement bags were torn on arrival.",
+             "medium", "open", "operator", "vendor"),
+        ]
+        for i, (subj, desc, sev, status, level, target) in enumerate(samples):
+            o = placed[i] if i < len(placed) else None
+            cid = self.next_complaint_id()
+            created = _now() - timedelta(hours=self.rng.randint(2, 60))
+            thread = [{"by": (o["buyer_name"] if o else "Ramesh Constructions"), "role": "buyer",
+                       "at": iso(created), "note": desc}]
+            if status in ("in_progress", "escalated"):
+                thread.append({"by": "Hub Operator", "role": "operator",
+                               "at": iso(created + timedelta(hours=1)),
+                               "note": "Looking into this and coordinating with the vendor."})
+            if status == "escalated":
+                thread.append({"by": "Hub Operator", "role": "operator",
+                               "at": iso(created + timedelta(hours=2)),
+                               "note": "Escalating to manager after the call with the buyer."})
+            self.complaints.append({
+                "id": cid, "order_id": o["id"] if o else None,
+                "raised_by": {"role": "buyer", "name": o["buyer_name"] if o else "Ramesh Constructions",
+                              "email": o.get("buyer_email", "") if o else "ramesh@build.in"},
+                "target": target, "subject": subj, "description": desc,
+                "severity": sev, "status": status, "level": level,
+                "order_snapshot": self.order_snapshot(o) if o else None,
+                "thread": thread, "created_at": created,
+                "updated_at": created + timedelta(hours=2 if status != "open" else 0),
+            })
+        self.complaints.sort(key=lambda c: c["created_at"], reverse=True)
 
 
 store = Store()

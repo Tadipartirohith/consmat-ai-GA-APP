@@ -16,13 +16,13 @@ router = APIRouter()
 
 
 @router.get("/operator/dispatch-queue")
-def dispatch_queue(_=Depends(require_role("operator", "admin"))):
+def dispatch_queue(_=Depends(require_role("operator", "manager", "admin"))):
     tickets = [operator_ticket(o) for o in store.orders if o["status"] != "cancelled"]
     return {"tickets": tickets}
 
 
 @router.post("/operator/dispatch/{order_id}")
-def dispatch(order_id: str, _=Depends(require_role("operator", "admin"))):
+def dispatch(order_id: str, _=Depends(require_role("operator", "manager", "admin"))):
     o = store.get_order(order_id)
     if not o:
         raise HTTPException(404, "Order not found")
@@ -39,7 +39,7 @@ class Proof(BaseModel):
 
 
 @router.post("/operator/deliver/{order_id}")
-def deliver(order_id: str, body: Proof | None = None, _=Depends(require_role("operator", "admin"))):
+def deliver(order_id: str, body: Proof | None = None, _=Depends(require_role("operator", "manager", "admin"))):
     o = store.get_order(order_id)
     if not o:
         raise HTTPException(404, "Order not found")
@@ -54,7 +54,7 @@ def deliver(order_id: str, body: Proof | None = None, _=Depends(require_role("op
 
 
 @router.get("/operator/network-stock")
-def network_stock(_=Depends(require_role("operator", "admin"))):
+def network_stock(_=Depends(require_role("operator", "manager", "admin"))):
     products = []
     for mid, m in store.materials.items():
         vendors = []
@@ -80,7 +80,7 @@ class ReorderBody(BaseModel):
 
 
 @router.post("/operator/reorder")
-def reorder(body: ReorderBody, _=Depends(require_role("operator", "admin"))):
+def reorder(body: ReorderBody, _=Depends(require_role("operator", "manager", "admin"))):
     v = store.vendors.get(body.vendor_id)
     if not v:
         raise HTTPException(404, "Vendor not found")
@@ -97,7 +97,7 @@ def reorder(body: ReorderBody, _=Depends(require_role("operator", "admin"))):
 
 
 @router.get("/operator/views")
-def list_views(_=Depends(require_role("operator", "admin"))):
+def list_views(_=Depends(require_role("operator", "manager", "admin"))):
     return {"views": store.views}
 
 
@@ -110,7 +110,7 @@ class ViewBody(BaseModel):
 
 
 @router.post("/operator/views")
-def create_view(body: ViewBody, _=Depends(require_role("operator", "admin"))):
+def create_view(body: ViewBody, _=Depends(require_role("operator", "manager", "admin"))):
     view = {"id": "vw_" + uuid.uuid4().hex[:8], "name": body.name, "filter": body.filter,
             "search": body.search, "sort": body.sort, "created_by": body.created_by or "operator"}
     store.views.append(view)
@@ -118,6 +118,6 @@ def create_view(body: ViewBody, _=Depends(require_role("operator", "admin"))):
 
 
 @router.delete("/operator/views/{view_id}")
-def delete_view(view_id: str, _=Depends(require_role("operator", "admin"))):
+def delete_view(view_id: str, _=Depends(require_role("operator", "manager", "admin"))):
     store.views = [v for v in store.views if v["id"] != view_id]
     return {"ok": True}

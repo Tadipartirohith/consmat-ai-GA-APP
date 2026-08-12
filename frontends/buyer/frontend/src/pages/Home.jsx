@@ -6,6 +6,7 @@ import { ChatMode } from "@/components/ChatMode";
 import { EstimateMode } from "@/components/EstimateMode";
 import { CartSheet } from "@/components/CartSheet";
 import { OrdersSheet } from "@/components/OrdersSheet";
+import { SupportSheet } from "@/components/SupportSheet";
 import { Store, MessagesSquare, Calculator } from "lucide-react";
 
 const MODES = [
@@ -17,12 +18,14 @@ const MODES = [
 export default function Home() {
   const { cart, cartOpen, setCartOpen, ordersOpen, setOrdersOpen } = useApp();
   const [mode, setMode] = useState("shop");
+  const [supportOpen, setSupportOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-[#0f1216]">
       <Header
         onOpenCart={() => setCartOpen(true)}
         onOpenOrders={() => setOrdersOpen(true)}
+        onOpenSupport={() => setSupportOpen(true)}
         cartCount={cart.length}
       />
 
@@ -54,6 +57,7 @@ export default function Home() {
 
       <CartSheet open={cartOpen} onOpenChange={setCartOpen} />
       <OrdersSheet open={ordersOpen} onOpenChange={setOrdersOpen} />
+      <SupportSheet open={supportOpen} onOpenChange={setSupportOpen} />
     </div>
   );
 }

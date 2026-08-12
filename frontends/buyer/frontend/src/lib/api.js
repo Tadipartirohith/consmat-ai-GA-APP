@@ -84,4 +84,22 @@ export async function getTracking(orderId) {
   return data; // { origin, dest, vehicle, progress, distance_km, remaining_km, eta_at, driver, ... }
 }
 
+// ---- Customer support / complaints ----
+export async function raiseComplaint(payload) {
+  const { data } = await client.post("/support/complaints", payload);
+  return data;
+}
+export async function getComplaints() {
+  const { data } = await client.get("/support/complaints");
+  return data; // { complaints: [...] }
+}
+export async function getComplaint(id) {
+  const { data } = await client.get(`/support/complaints/${id}`);
+  return data;
+}
+export async function addComplaintMessage(id, note) {
+  const { data } = await client.post(`/support/complaints/${id}/messages`, { note });
+  return data;
+}
+
 export default client;

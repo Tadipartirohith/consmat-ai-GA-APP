@@ -72,4 +72,7 @@ export const updateOrderStatus = (orderId, status, note) =>
 export const getTracking = (orderId) =>
   api.get(`/orders/${orderId}/tracking`).then((r) => r.data);
 
+export const raiseComplaint = (payload) =>
+  api.post("/support/complaints", payload).then((r) => r.data);
+
 export default api;

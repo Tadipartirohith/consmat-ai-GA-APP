@@ -19,6 +19,7 @@ import {
   MapPin,
   ShoppingCart,
   Receipt,
+  LifeBuoy,
   LogOut,
   Volume2,
   VolumeX,
@@ -39,7 +40,7 @@ function timeAgo(ts) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-export function Header({ onOpenCart, onOpenOrders, cartCount = 0 }) {
+export function Header({ onOpenCart, onOpenOrders, onOpenSupport, cartCount = 0 }) {
   const {
     location,
     setLocation,
@@ -253,6 +254,17 @@ export function Header({ onOpenCart, onOpenOrders, cartCount = 0 }) {
                   {cartCount}
                 </span>
               )}
+            </Button>
+
+            <Button
+              data-testid="open-support-btn"
+              variant="ghost"
+              size="icon"
+              onClick={onOpenSupport}
+              title="Customer support"
+              className="h-9 w-9 text-white/70 hover:bg-white/5 hover:text-white"
+            >
+              <LifeBuoy size={18} />
             </Button>
 
             <Button

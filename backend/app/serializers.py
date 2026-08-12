@@ -156,6 +156,23 @@ def operator_ticket(o: dict) -> dict:
     }
 
 
+# ============================ SUPPORT / COMPLAINTS ============================
+def complaint_view(c: dict, full: bool = False) -> dict:
+    out = {
+        "id": c["id"], "order_id": c.get("order_id"),
+        "subject": c["subject"], "description": c["description"],
+        "severity": c["severity"], "status": c["status"], "level": c["level"],
+        "target": c.get("target"), "raised_by": c["raised_by"],
+        "created_at": iso(c["created_at"]), "updated_at": iso(c.get("updated_at")),
+        "message_count": len(c.get("thread", [])),
+        "is_order_based": bool(c.get("order_id")),
+    }
+    if full:
+        out["thread"] = c.get("thread", [])
+        out["order_snapshot"] = c.get("order_snapshot")
+    return out
+
+
 # ------------------------------- helpers ------------------------------------
 def _vendor_gmv(vid: str) -> float:
     return round(sum(it["landed_cost"] for o in store.orders if o["status"] != "cancelled"

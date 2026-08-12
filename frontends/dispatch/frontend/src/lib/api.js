@@ -32,6 +32,21 @@ export const api = {
     client.get("/operator/dispatch-queue").then((r) => r.data),
   activeTracking: () =>
     client.get("/tracking/active").then((r) => r.data),
+  // Customer support / complaints
+  complaints: (status) =>
+    client.get("/support/complaints", { params: status ? { status } : {} }).then((r) => r.data),
+  complaint: (id) => client.get(`/support/complaints/${id}`).then((r) => r.data),
+  complaintMessage: (id, note) =>
+    client.post(`/support/complaints/${id}/messages`, { note }).then((r) => r.data),
+  complaintEscalate: (id, note) =>
+    client.post(`/support/complaints/${id}/escalate`, { note }).then((r) => r.data),
+  complaintStatus: (id, status, note) =>
+    client.post(`/support/complaints/${id}/status`, { status, note }).then((r) => r.data),
+  supportMetrics: () => client.get("/support/metrics").then((r) => r.data),
+  // Staff (manager/admin)
+  staff: () => client.get("/admin/staff").then((r) => r.data),
+  addStaff: (body) => client.post("/admin/staff", body).then((r) => r.data),
+  removeStaff: (email) => client.delete(`/admin/staff/${encodeURIComponent(email)}`).then((r) => r.data),
   dispatch: (orderId) =>
     client.post(`/operator/dispatch/${orderId}`).then((r) => r.data),
   deliver: (orderId, proof) =>

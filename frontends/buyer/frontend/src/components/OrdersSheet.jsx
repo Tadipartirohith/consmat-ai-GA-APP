@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LiveTracking } from "@/components/LiveTracking";
+import { ComplaintDialog } from "@/components/ComplaintDialog";
 import { toast } from "sonner";
 import {
   Receipt,
@@ -31,6 +32,7 @@ import {
   RotateCcw,
   Search,
   RefreshCw,
+  LifeBuoy,
 } from "lucide-react";
 
 const STEP_ICONS = { placed: Check, dispatched: Truck, delivered: PackageCheck };
@@ -206,6 +208,7 @@ function OrderDetailDialog({ order, updatedAt, onClose }) {
   const { addToCart, setCartOpen, setOrdersOpen } = useApp();
   const [pulse, setPulse] = useState(false);
   const [tracking, setTracking] = useState(false);
+  const [complaintOpen, setComplaintOpen] = useState(false);
 
   useEffect(() => {
     if (!updatedAt) return;
@@ -350,14 +353,30 @@ function OrderDetailDialog({ order, updatedAt, onClose }) {
           <span className="font-mono text-lg font-bold text-[#ff7a2f]">{formatINR(total)}</span>
         </div>
 
-        <Button
-          data-testid="reorder-btn"
-          onClick={reorder}
-          disabled={!Array.isArray(items) || items.length === 0}
-          className="w-full bg-[#ff7a2f] font-semibold text-black hover:bg-[#e66822]"
-        >
-          <RotateCcw size={16} className="mr-1.5" /> Reorder these items
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            data-testid="reorder-btn"
+            onClick={reorder}
+            disabled={!Array.isArray(items) || items.length === 0}
+            className="flex-1 bg-[#ff7a2f] font-semibold text-black hover:bg-[#e66822]"
+          >
+            <RotateCcw size={16} className="mr-1.5" /> Reorder
+          </Button>
+          <Button
+            data-testid="report-issue-btn"
+            onClick={() => setComplaintOpen(true)}
+            variant="outline"
+            className="flex-1 border-white/15 bg-transparent text-white/80 hover:bg-white/5"
+          >
+            <LifeBuoy size={16} className="mr-1.5" /> Report an issue
+          </Button>
+        </div>
+
+        <ComplaintDialog
+          open={complaintOpen}
+          onOpenChange={setComplaintOpen}
+          orderId={g(order, ["order_id", "id", "orderId"])}
+        />
       </DialogContent>
     </Dialog>
   );

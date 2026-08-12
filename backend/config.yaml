@@ -244,6 +244,7 @@ demo_users:
   - { email: "vendor@consmat.com",   name: "UltraBuild Owner", role: vendor, vendor: v_ultrabuild }
   - { email: "admin@consmat.com",    name: "Consmat Admin", role: admin }
   - { email: "operator@consmat.in",  name: "Hub Operator",  role: operator }
+  - { email: "manager@consmat.com",  name: "Ops Manager",   role: manager }
 
 # --- Container ports (compose reads these via .env; listed here for reference)
 ports:

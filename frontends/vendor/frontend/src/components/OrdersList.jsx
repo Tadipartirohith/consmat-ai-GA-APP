@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/dialog";
 import { updateOrderStatus } from "@/lib/api";
 import { LiveTracking } from "@/components/LiveTracking";
+import { ComplaintDialog } from "@/components/ComplaintDialog";
+import { LifeBuoy } from "lucide-react";
 import { formatINR, pick } from "@/lib/format";
 import { toast } from "sonner";
 
@@ -52,6 +54,7 @@ const statusGroup = (order) => {
 const OrderCard = ({ order, index }) => {
   const [open, setOpen] = useState(false);
   const [showTrack, setShowTrack] = useState(false);
+  const [complaintOpen, setComplaintOpen] = useState(false);
   const [note, setNote] = useState("");
   const queryClient = useQueryClient();
   const id = pick(order, ["id", "_id", "order_id", "reference"], `#${index + 1}`);
@@ -234,6 +237,17 @@ const OrderCard = ({ order, index }) => {
                 {formatINR(total)}
               </span>
             </div>
+
+            {orderApiId != null && (
+              <button
+                data-testid={`vendor-report-issue-${id}`}
+                onClick={() => setComplaintOpen(true)}
+                className="flex w-full items-center justify-center gap-1.5 rounded-md border border-white/10 py-2 text-sm text-[#94a3b8] transition-colors hover:border-[#ff7a2f]/40 hover:text-white"
+              >
+                <LifeBuoy size={15} /> Report an issue with this order
+              </button>
+            )}
+            <ComplaintDialog open={complaintOpen} onOpenChange={setComplaintOpen} orderId={orderApiId} />
 
             {orderApiId != null && !isDone && (
               <div className="space-y-2 border-t border-white/10 pt-3">
