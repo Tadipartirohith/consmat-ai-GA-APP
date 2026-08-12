@@ -12,12 +12,12 @@ import ApiConfigDialog from "@/components/ApiConfigDialog";
 import { toast } from "sonner";
 
 const FIELDS = [
-  { key: "name", label: "Business Name", type: "text", required: true, placeholder: "Sharma General Store" },
-  { key: "email", label: "Email", type: "email", required: true, placeholder: "vendor@example.com" },
+  { key: "name", label: "Business Name", type: "text", required: true, placeholder: "Deccan Building Materials" },
+  { key: "email", label: "Email", type: "email", required: true, placeholder: "vendor@consmat.com" },
   { key: "password", label: "Password", type: "password", required: true, placeholder: "consmat123" },
   { key: "phone", label: "Phone", type: "tel", required: false, placeholder: "+91 98765 43210" },
-  { key: "category", label: "Category / Business Type", type: "text", required: false, placeholder: "Groceries" },
-  { key: "location", label: "Location", type: "text", required: false, placeholder: "Mumbai, MH" },
+  { key: "category", label: "Category / Materials", type: "text", required: false, placeholder: "Cement, TMT Steel, Aggregates" },
+  { key: "location", label: "Location", type: "text", required: false, placeholder: "Medchal, Telangana" },
 ];
 
 export default function Register() {
@@ -104,7 +104,7 @@ export default function Register() {
               <Label htmlFor="description" className="text-[#94a3b8]">Description</Label>
               <Textarea
                 id="description"
-                placeholder="Tell customers about your business…"
+                placeholder="e.g. Cement, TMT steel and aggregates supplied across Hyderabad and nearby districts…"
                 value={form.description || ""}
                 onChange={(e) => set("description", e.target.value)}
                 data-testid="register-description-input"

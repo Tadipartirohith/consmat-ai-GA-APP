@@ -184,16 +184,16 @@ vendors:
     warehouse: sangareddy
     approved: true
     offers: { cement: {price: 402, stock: 1500}, steel: {price: 62900, stock: 80}, aggregate: {price: 980, stock: 600} }
-  - id: v_kirana
-    name: "Local Kirana Supplies"
+  - id: v_localbuild
+    name: "Bhongir Building Supplies"
     tier: Supplier
-    category: "Masonry"
+    category: "Building Materials"
     quality: 2.9
     isi: false
     credit: "Cash"
     city: "Bhongir"
     phone: "+91 90000 11005"
-    gstin: "36ALKS2345M2M8"
+    gstin: "36BBSC2345M2M8"
     warehouse: bhongir
     approved: true
     offers: { cement: {price: 375, stock: 300}, sand: {price: 980, stock: 150}, bricks: {price: 6.9, stock: 30000} }

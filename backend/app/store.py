@@ -109,7 +109,7 @@ class Store:
         buyers = [("Ramesh Constructions", "+91 98480 10001", "ramesh@build.in", "36ABCDE1111Z1"),
                   ("Sri Venkatesh Builders", "+91 98480 10002", "venkatesh@sv.in", "36ABCDE2222Z2"),
                   ("Lakshmi Infra", "+91 98480 10003", "info@lakshmiinfra.in", "36ABCDE3333Z3"),
-                  ("Individual — R. Kumar", "+91 98480 10004", "rkumar@gmail.com", ""),
+                  ("R. Kumar (Individual)", "+91 98480 10004", "rkumar@gmail.com", ""),
                   ("Deccan Developers", "+91 98480 10005", "ops@deccandev.in", "36ABCDE5555Z5")]
         mats = list(self.materials.keys())
         statuses = ["placed", "placed", "dispatched", "dispatched", "delivered", "delivered", "delivered"]
