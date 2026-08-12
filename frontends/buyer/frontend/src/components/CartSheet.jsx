@@ -94,7 +94,10 @@ export function CartSheet({ open, onOpenChange }) {
                   className="flex items-center gap-3 rounded-xl border border-white/10 bg-[#171c22] p-3"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold">{titleCase(item.material)}</p>
+                    <p className="truncate font-semibold">
+                      {titleCase(item.material)}
+                      {item.brand ? <span className="ml-1.5 rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-white/70">{item.brand}</span> : null}
+                    </p>
                     <p className="truncate text-xs text-white/50">
                       {item.vendor ? item.vendor : "best vendor"}
                     </p>

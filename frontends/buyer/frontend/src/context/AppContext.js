@@ -171,12 +171,16 @@ export function AppProvider({ children }) {
 
   const addToCart = useCallback((item) => {
     setCart((prev) => {
-      // Key by material AND vendor so the same material bought from two vendors
-      // stays as two separate lines (buyers can split an order across vendors).
+      // Key by material + vendor + brand so the same material from two vendors
+      // (or two brands from one vendor) stays as separate lines.
       const mkey = (item.material || item.name || "").toLowerCase();
       const vkey = (item.vendor || "").toLowerCase();
+      const bkey = (item.brand || "").toLowerCase();
       const idx = prev.findIndex(
-        (p) => (p.material || "").toLowerCase() === mkey && (p.vendor || "").toLowerCase() === vkey
+        (p) =>
+          (p.material || "").toLowerCase() === mkey &&
+          (p.vendor || "").toLowerCase() === vkey &&
+          (p.brand || "").toLowerCase() === bkey
       );
       if (idx >= 0) {
         const next = [...prev];
@@ -191,12 +195,14 @@ export function AppProvider({ children }) {
       return [
         ...prev,
         {
-          id: `${mkey}-${vkey}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          id: `${mkey}-${vkey}-${bkey}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
           material: item.material || item.name,
           quantity: Number(item.quantity || 1),
           unit: item.unit || "units",
           vendor: item.vendor || null,
           vendor_id: item.vendor_id || null,
+          brand: item.brand || "",
+          offer_key: item.offer_key || null,
           price: item.price ?? item.landed_price ?? null,
           // Per-unit price + fixed delivery so the line total recomputes on qty change.
           unit_price: item.unit_price ?? null,

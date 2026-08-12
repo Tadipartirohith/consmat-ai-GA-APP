@@ -61,18 +61,26 @@ class OfferBody(BaseModel):
     price: float
     stock: int
     category: Optional[str] = None
+    brand: Optional[str] = None
     image_url: Optional[str] = None
 
 
-def _offer_key(body: OfferBody) -> str:
-    if body.id and body.id in store.materials:
-        return body.id
+def _base_material(body: OfferBody) -> str:
+    if body.id and body.id.split("#")[0] in store.materials:
+        return body.id.split("#")[0]
     mid = resolve_material(body.name or body.id or "")
-    if mid:
-        return mid
-    if body.id:
-        return body.id
-    return "custom_" + re.sub(r"[^a-z0-9]+", "", (body.name or "item").lower())[:16]
+    return mid or (body.id or "custom_" + re.sub(r"[^a-z0-9]+", "", (body.name or "item").lower())[:16])
+
+
+def _offer_key(body: OfferBody) -> str:
+    base = _base_material(body)
+    brand = (body.brand or "").strip()
+    # A brand on a known material becomes a distinct offer, so a vendor can sell
+    # several brands of the same material (base + brand-suffixed keys).
+    if brand and base in store.materials:
+        slug = re.sub(r"[^a-z0-9]+", "", brand.lower())[:12]
+        return f"{base}#{slug}"
+    return base
 
 
 @router.post("/vendors/me/offers")
@@ -81,8 +89,9 @@ def create_offer(body: OfferBody, user: dict = Depends(require_role("vendor"))):
     key = _offer_key(body)
     v["offers"][key] = {"price": float(body.price), "stock": int(body.stock),
                         "name": body.name, "category": body.category,
+                        "brand": (body.brand or "").strip(), "material": _base_material(body),
                         "image_url": body.image_url}
-    return {"ok": True, "id": key}
+    return {"ok": True, "id": key, "brand": body.brand}
 
 
 @router.put("/vendors/me/offers")
@@ -93,6 +102,8 @@ def update_offer(body: OfferBody, user: dict = Depends(require_role("vendor"))):
     v["offers"][key] = {**existing, "price": float(body.price), "stock": int(body.stock),
                         "name": body.name or existing.get("name"),
                         "category": body.category or existing.get("category"),
+                        "brand": (body.brand if body.brand is not None else existing.get("brand", "")),
+                        "material": existing.get("material") or store.offer_material(key, existing or {}),
                         "image_url": body.image_url or existing.get("image_url")}
     return {"ok": True, "id": key}
 

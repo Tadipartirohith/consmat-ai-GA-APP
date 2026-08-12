@@ -60,12 +60,15 @@ def network_stock(_=Depends(require_role("operator", "manager", "admin"))):
         vendors = []
         total = 0
         for v in store.vendors.values():
-            off = v["offers"].get(mid)
-            if not off or not v["approved"]:
+            if not v["approved"]:
                 continue
-            total += off["stock"]
-            vendors.append({"vendor_id": v["id"], "vendor_name": v["name"],
-                            "rating": v["quality"], "price": off["price"], "stock": off["stock"]})
+            for okey, off in v["offers"].items():
+                if store.offer_material(okey, off) != mid:
+                    continue
+                total += off["stock"]
+                vendors.append({"vendor_id": v["id"], "vendor_name": v["name"],
+                                "brand": off.get("brand", ""), "rating": v["quality"],
+                                "price": off["price"], "stock": off["stock"]})
         if not vendors:
             continue
         products.append({"product_id": mid, "name": m["name"], "category": m["category"],

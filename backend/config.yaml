@@ -144,7 +144,7 @@ vendors:
     gstin: "36AAB1234C1Z5"
     warehouse: medchal
     approved: true
-    offers: { cement: {price: 415, stock: 2000}, steel: {price: 64500, stock: 40} }
+    offers: { cement: {price: 415, stock: 2000, brand: "UltraTech"}, "cement#acc": {material: cement, price: 425, stock: 800, brand: "ACC"}, steel: {price: 64500, stock: 40, brand: "TATA Tiscon"} }
   - id: v_balaji
     name: "Sri Balaji Traders"
     tier: Trader
@@ -157,7 +157,7 @@ vendors:
     gstin: "36ABX5678K9K2"
     warehouse: ibrahim
     approved: true
-    offers: { cement: {price: 388, stock: 30}, sand: {price: 1150, stock: 300}, aggregate: {price: 1050, stock: 400} }
+    offers: { cement: {price: 388, stock: 30, brand: "Dalmia"}, sand: {price: 1150, stock: 300}, aggregate: {price: 1050, stock: 400} }
   - id: v_ultrabuild
     name: "UltraBuild Wholesale"
     tier: Wholesaler
@@ -170,7 +170,7 @@ vendors:
     gstin: "36AAUB3456P3P1"
     warehouse: hub
     approved: true
-    offers: { cement: {price: 432, stock: 0}, steel: {price: 63800, stock: 120}, bricks: {price: 8.5, stock: 60000} }
+    offers: { cement: {price: 432, stock: 0, brand: "Ambuja"}, steel: {price: 63800, stock: 120, brand: "JSW"}, bricks: {price: 8.5, stock: 60000} }
   - id: v_metro
     name: "Metro Steel & Cement"
     tier: Distributor
@@ -183,7 +183,7 @@ vendors:
     gstin: "36AAMC7890T7T4"
     warehouse: sangareddy
     approved: true
-    offers: { cement: {price: 402, stock: 1500}, steel: {price: 62900, stock: 80}, aggregate: {price: 980, stock: 600} }
+    offers: { cement: {price: 402, stock: 1500, brand: "ACC"}, steel: {price: 62900, stock: 80, brand: "SAIL"}, aggregate: {price: 980, stock: 600} }
   - id: v_localbuild
     name: "Bhongir Building Supplies"
     tier: Supplier
@@ -196,7 +196,7 @@ vendors:
     gstin: "36BBSC2345M2M8"
     warehouse: bhongir
     approved: true
-    offers: { cement: {price: 375, stock: 300}, sand: {price: 980, stock: 150}, bricks: {price: 6.9, stock: 30000} }
+    offers: { cement: {price: 375, stock: 300, brand: "Bharathi"}, sand: {price: 980, stock: 150}, bricks: {price: 6.9, stock: 30000} }
   - id: v_godavari
     name: "Godavari Sand Co."
     tier: Supplier

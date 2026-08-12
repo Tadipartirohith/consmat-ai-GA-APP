@@ -69,19 +69,20 @@ const Thumb = ({ src, size = 34 }) => {
 
 const AddOfferDialog = ({ onAdded }) => {
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", price: "", stock: "", image: "" });
+  const [form, setForm] = useState({ name: "", brand: "", price: "", stock: "", image: "" });
 
   const mutation = useMutation({
     mutationFn: () =>
       createOffer({
         name: form.name.trim(),
+        brand: form.brand.trim() || undefined,
         price: Number(form.price),
         stock: Number(form.stock),
         image_url: form.image.trim() || undefined,
       }),
     onSuccess: () => {
       toast.success(`Added "${form.name.trim()}"`);
-      setForm({ name: "", price: "", stock: "", image: "" });
+      setForm({ name: "", brand: "", price: "", stock: "", image: "" });
       setOpen(false);
       onAdded?.();
     },
@@ -120,6 +121,17 @@ const AddOfferDialog = ({ onAdded }) => {
               Name it after a construction material (cement, TMT steel, sand, aggregate, bricks) so
               buyers find it.
             </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[#94a3b8]">Brand (optional)</Label>
+            <Input
+              data-testid="add-offer-brand-input"
+              value={form.brand}
+              onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))}
+              placeholder="e.g. UltraTech, ACC, TATA Tiscon"
+              className="bg-[#0f1216] border-white/10 text-white focus-visible:ring-1 focus-visible:ring-[#ff7a2f]"
+            />
+            <p className="text-[11px] text-[#94a3b8]">Add the same material under different brands to sell more than one.</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -377,7 +389,10 @@ const EditableRow = ({ offer, threshold, onSaved }) => {
           <div className="flex items-center gap-2.5">
             <Thumb src={getOfferImage(offer)} />
             <div className="min-w-0">
-              <span className="block truncate">{getOfferName(offer)}</span>
+              <span className="block truncate">
+                {getOfferName(offer)}
+                {offer.brand ? <span className="ml-1.5 rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-[#94a3b8]">{offer.brand}</span> : null}
+              </span>
               {getOfferCategory(offer) && (
                 <span className="block truncate text-xs text-[#94a3b8]" data-testid={`offer-category-${rowKey}`}>
                   {getOfferCategory(offer)}

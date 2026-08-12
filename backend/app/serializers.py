@@ -97,10 +97,11 @@ def admin_vendor_detail(v: dict) -> dict:
 # ============================ VENDOR ============================
 def vendor_profile(v: dict) -> dict:
     offers = []
-    for mid, off in v["offers"].items():
-        m = store.materials.get(mid, {})
-        offers.append({"id": mid,
-                       "name": off.get("name") or m.get("name", mid),
+    for okey, off in v["offers"].items():
+        rmid = store.offer_material(okey, off)
+        m = store.materials.get(rmid, {})
+        offers.append({"id": okey, "material": rmid, "brand": off.get("brand", ""),
+                       "name": off.get("name") or m.get("name", rmid),
                        "price": off["price"], "stock": off["stock"],
                        "category": off.get("category") or m.get("category", "Custom"),
                        "unit": off.get("unit") or m.get("unit", "units"),

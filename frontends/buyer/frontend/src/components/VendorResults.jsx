@@ -17,7 +17,9 @@ const unitOf = (c) => num(c.price_per_unit ?? c.unit_price ?? c.rate, 0);
 const ratingOf = (c) => num(c.quality ?? c.rating, 0);
 const distOf = (c) => num(c.distance ?? c.distance_km, 0);
 const isiOf = (c) => (c.isi ? 1 : 0);
-const vidOf = (c) => c.vendor_id || c.vendor || c.vendor_name;
+// Globally unique per vendor AND brand: offer_key is only unique within a vendor
+// (the default brand's key is just the material id), so combine with the vendor.
+const vidOf = (c) => `${c.vendor_id || c.vendor_name}::${c.offer_key || c.brand || ""}`;
 
 const sorters = {
   price_asc: (a, b) => unitOf(a) - unitOf(b),
@@ -32,15 +34,24 @@ const sorters = {
 // target it stays a simple sorted list with per-card add-to-cart.
 export function VendorResults({ cards = [], onAdd, target = 0, unit = "units" }) {
   const [sort, setSort] = useState("price_asc");
+  const [brand, setBrand] = useState("all");
   const [alloc, setAlloc] = useState({});
 
   // Reset allocations whenever a fresh result set arrives.
   useEffect(() => setAlloc({}), [cards, target]);
 
+  const brands = useMemo(
+    () => Array.from(new Set(cards.map((c) => c.brand).filter(Boolean))).sort(),
+    [cards]
+  );
+
   const oosOf = (c) => (c.out_of_stock || (c.stock != null && c.stock <= 0) ? 1 : 0);
   const view = useMemo(
-    () => [...cards].sort((a, b) => oosOf(a) - oosOf(b) || (sorters[sort] || sorters.price_asc)(a, b)),
-    [cards, sort]
+    () =>
+      [...cards]
+        .filter((c) => brand === "all" || c.brand === brand)
+        .sort((a, b) => oosOf(a) - oosOf(b) || (sorters[sort] || sorters.price_asc)(a, b)),
+    [cards, sort, brand]
   );
 
   const material = cards[0]?.material || "";
@@ -87,6 +98,8 @@ export function VendorResults({ cards = [], onAdd, target = 0, unit = "units" })
         unit,
         vendor: c.vendor || c.vendor_name,
         vendor_id: c.vendor_id,
+        brand: c.brand || "",
+        offer_key: c.offer_key,
         unit_price: unitOf(c),
         logistics: num(c.logistics_cost ?? c.logistics),
         price: unitOf(c) * q + num(c.logistics_cost ?? c.logistics),
@@ -124,6 +137,28 @@ export function VendorResults({ cards = [], onAdd, target = 0, unit = "units" })
             </button>
           ))}
         </div>
+
+        {brands.length > 1 && (
+          <div className="flex items-center gap-2 sm:ml-auto">
+            <span className="text-[10px] uppercase tracking-[0.2em] text-white/40">Brand</span>
+            <div className="flex flex-wrap gap-1.5">
+              {["all", ...brands].map((brd) => (
+                <button
+                  key={brd}
+                  data-testid={`brand-${brd}`}
+                  onClick={() => setBrand(brd)}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold capitalize transition-colors ${
+                    brand === brd
+                      ? "bg-white text-black"
+                      : "border border-white/10 bg-[#0f1216] text-white/60 hover:text-white"
+                  }`}
+                >
+                  {brd === "all" ? "All brands" : brd}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Allocation tracker */}

@@ -64,6 +64,7 @@ def match_cards(material_id: str, quantity: float, location: str, pq: int,
             "distance": r["distance_km"], "why": _why(rows, r),
             "price_per_unit": r["unit_price"], "rank": r["rank"], "in_stock": r["in_stock"],
             "stock": r["stock"], "out_of_stock": r.get("out_of_stock", False),
+            "brand": r.get("brand", ""), "offer_key": r.get("offer_key", material_id),
             "credit": r["credit"], "isi": r["isi"], "tier": r["tier"],
         })
     return out
@@ -317,7 +318,8 @@ def _build_lines(items: list, loc: str, pq: int):
                          "vendor": a["vendor_name"], "vendor_id": a["vendor_id"],
                          "landed_price": a["landed_price"],
                          "unit_price": a["unit_price"], "logistics": a["logistics"],
-                         "stock": a["stock"]})
+                         "stock": a["stock"], "brand": a.get("brand", ""),
+                         "offer_key": a.get("offer_key")})
     return sugg, cards, grand
 
 
@@ -488,9 +490,11 @@ def _optimize(items: list[OptItem], location: str) -> dict:
             continue
         total, covered, lines = 0.0, 0, []
         for mid, q in pairs:
-            off = v["offers"].get(mid)
-            if not off or off["stock"] <= 0:
+            brand_offers = [o for k, o in v["offers"].items()
+                            if store.offer_material(k, o) == mid and o["stock"] > 0]
+            if not brand_offers:
                 continue
+            off = min(brand_offers, key=lambda o: o["price"])
             km = domain.distance_km(store.warehouses[v["warehouse"]], dest)
             landed = off["price"] * q + domain.logistics_cost(km, mid, store.pricing)
             total += landed
@@ -530,22 +534,30 @@ class CheckoutItem(BaseModel):
     unit: Optional[str] = None
     vendor: Optional[str] = None
     vendor_id: Optional[str] = None
+    brand: Optional[str] = None
+    offer_key: Optional[str] = None
     price: Optional[float] = None
 
 
-def _vendor_row(mid: str, quantity: float, dest: dict, vendor_key: str):
-    """Price a specific vendor's offer for `quantity` (honours the buyer's choice)."""
+def _vendor_row(mid: str, quantity: float, dest: dict, vendor_key: str,
+                brand: Optional[str] = None, offer_key: Optional[str] = None):
+    """Price a specific vendor's offer (and brand) for `quantity`."""
     key = str(vendor_key).strip().lower()
-    for o in store.offers_for(mid):
-        if o["vendor_id"].lower() == key or o["vendor_name"].lower() == key:
-            if o["stock"] <= 0:
-                return None
-            km = domain.distance_km(o["wh"], dest)
-            logi = domain.logistics_cost(km, mid, store.pricing)
-            mat = o["unit_price"] * quantity
-            return {**o, "distance_km": km, "logistics_cost": round(logi, 2),
-                    "material_cost": round(mat, 2), "landed_cost": round(mat + logi, 2),
-                    "value_score": 0, "in_stock": o["stock"] >= quantity}
+    rows = [o for o in store.offers_for(mid)
+            if o["vendor_id"].lower() == key or o["vendor_name"].lower() == key]
+    if offer_key:
+        rows = [o for o in rows if o.get("offer_key") == offer_key] or rows
+    elif brand:
+        rows = [o for o in rows if (o.get("brand") or "").lower() == str(brand).lower()] or rows
+    for o in rows:
+        if o["stock"] <= 0:
+            continue
+        km = domain.distance_km(o["wh"], dest)
+        logi = domain.logistics_cost(km, mid, store.pricing)
+        mat = o["unit_price"] * quantity
+        return {**o, "distance_km": km, "logistics_cost": round(logi, 2),
+                "material_cost": round(mat, 2), "landed_cost": round(mat + logi, 2),
+                "value_score": 0, "in_stock": o["stock"] >= quantity}
     return None
 
 
@@ -571,8 +583,8 @@ def checkout(body: CheckoutBody, user: dict | None = Depends(optional_user)):
             continue
         best = None
         chosen = it.vendor_id or it.vendor
-        if chosen:                                   # honour the buyer's chosen vendor
-            best = _vendor_row(mid, it.quantity, dest, chosen)
+        if chosen:                                   # honour the buyer's chosen vendor + brand
+            best = _vendor_row(mid, it.quantity, dest, chosen, brand=it.brand, offer_key=it.offer_key)
         if not best:                                 # fall back to cheapest reliable vendor
             best = domain.cheapest(store.offers_for(mid), it.quantity, dest, mid, store.pricing)
         if not best:

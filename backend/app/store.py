@@ -87,21 +87,30 @@ class Store:
         self._seed_ratings()
 
     # --------------------------------------------------------- helpers -------
+    @staticmethod
+    def offer_material(okey: str, off: dict) -> str:
+        """A vendor can carry several brands of a material via keys like
+        'cement#acc'; the material is stored on the offer or is the key prefix."""
+        return off.get("material") or okey.split("#")[0]
+
     def offers_for(self, material: str) -> list[dict]:
         out = []
         for v in self.vendors.values():
-            off = v["offers"].get(material)
-            if not off:
-                continue
-            vr, vc = self.vendor_rating(v["id"])
-            out.append({
-                "vendor_id": v["id"], "vendor_name": v["name"], "tier": v["tier"],
-                "quality": vr, "rating_count": vc, "isi": v["isi"], "credit": v["credit"],
-                "approved": v["approved"], "warehouse_id": v["warehouse"],
-                "warehouse_name": self.warehouses[v["warehouse"]]["name"],
-                "wh": self.warehouses[v["warehouse"]],
-                "unit_price": off["price"], "stock": off["stock"],
-            })
+            vr = vc = None
+            for okey, off in v["offers"].items():
+                if self.offer_material(okey, off) != material:
+                    continue
+                if vr is None:
+                    vr, vc = self.vendor_rating(v["id"])
+                out.append({
+                    "vendor_id": v["id"], "vendor_name": v["name"], "tier": v["tier"],
+                    "quality": vr, "rating_count": vc, "isi": v["isi"], "credit": v["credit"],
+                    "approved": v["approved"], "warehouse_id": v["warehouse"],
+                    "warehouse_name": self.warehouses[v["warehouse"]]["name"],
+                    "wh": self.warehouses[v["warehouse"]],
+                    "unit_price": off["price"], "stock": off["stock"],
+                    "brand": off.get("brand", ""), "offer_key": okey,
+                })
         return out
 
     def dest(self, location: str) -> dict:
@@ -158,6 +167,7 @@ class Store:
             "warehouse_id": best["warehouse_id"], "warehouse_name": best["warehouse_name"],
             "quantity": qty, "unit_price": best["unit_price"],
             "landed_cost": round(best["landed_cost"], 2),
+            "offer_key": best.get("offer_key", mid), "brand": best.get("brand", ""),
         }
 
     def _mk_order(self, items, location, payment_method, buyer, buyer_name,
@@ -178,11 +188,14 @@ class Store:
     def create_order(self, items, location, payment_method, buyer_id=None, buyer_name="Demo Buyer") -> dict:
         with _LOCK:
             order = self._mk_order(items, location, payment_method, buyer_id, buyer_name)
-            # decrement stock atomically
+            # decrement stock atomically on the exact offer (brand) that was ordered
             for it in items:
                 v = self.vendors.get(it["vendor_id"])
-                if v and it["material"] in v["offers"]:
-                    off = v["offers"][it["material"]]
+                if not v:
+                    continue
+                okey = it.get("offer_key") or it["material"]
+                off = v["offers"].get(okey) or v["offers"].get(it["material"])
+                if off:
                     off["stock"] = max(0, int(off["stock"] - it["quantity"]))
             self.orders.insert(0, order)
             return order
@@ -263,7 +276,7 @@ class Store:
 
     def _seed_ratings(self) -> None:
         vend = [("v_deccan", 5, "Reliable, on-time."), ("v_ultrabuild", 5, "Top grade cement."),
-                ("v_balaji", 3, "Cheap but packaging was rough."), ("v_metro", 4, "Good steel, fair price.")]
+                ("v_balaji", 4, "Cheapest around, packaging could be better."), ("v_metro", 4, "Good steel, fair price.")]
         for vid, stars, comment in vend:
             v = self.vendors.get(vid)
             if not v:

@@ -91,6 +91,7 @@ def split_fill(offers: list[dict], quantity: float, dest: dict, material: str,
             "logistics": round(r["logistics_cost"], 2), "landed_price": round(landed, 2),
             "distance_km": r["distance_km"], "quality": r["quality"],
             "warehouse_name": r["warehouse_name"], "stock": r["stock"],
+            "brand": r.get("brand", ""), "offer_key": r.get("offer_key"),
         })
         remaining -= take
     return out, max(0.0, round(remaining, 2))

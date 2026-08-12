@@ -35,6 +35,8 @@ export function VendorCard({
   const why = pick(data, ["why", "reason", "explanation", "rationale"], "");
   const perUnit = pick(data, ["price_per_unit", "unit_price", "rate"]);
   const stock = pick(data, ["stock", "available", "in_stock_qty"]);
+  const brand = pick(data, ["brand"], "");
+  const offerKey = pick(data, ["offer_key"]);
 
   // Stock states. Show a badge only when it matters (out, low, or can't cover).
   const oos = data?.out_of_stock === true || (stock != null && stock <= 0);
@@ -59,6 +61,11 @@ export function VendorCard({
           <h4 className="font-head text-lg font-bold leading-tight truncate" data-testid="vendor-name">
             {vendor}
           </h4>
+          {brand ? (
+            <span data-testid="vendor-brand" className="mt-0.5 inline-block rounded bg-white/10 px-1.5 py-0.5 text-[11px] font-semibold text-white/80">
+              {brand}
+            </span>
+          ) : null}
           {material ? (
             <p className="mt-0.5 text-sm text-white/60 truncate">
               {titleCase(material)}
@@ -196,6 +203,8 @@ export function VendorCard({
                 quantity: quantity || 1,
                 unit,
                 vendor,
+                brand,
+                offer_key: offerKey,
                 price: landed,
                 unit_price: perUnit,
                 logistics: logisticsCost,
