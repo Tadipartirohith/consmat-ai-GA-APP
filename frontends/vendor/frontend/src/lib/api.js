@@ -75,4 +75,7 @@ export const getTracking = (orderId) =>
 export const raiseComplaint = (payload) =>
   api.post("/support/complaints", payload).then((r) => r.data);
 
+export const getMaterials = () => api.get("/materials").then((r) => r.data);
+export const submitRating = (payload) => api.post("/ratings", payload).then((r) => r.data);
+
 export default api;

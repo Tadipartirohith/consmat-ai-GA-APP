@@ -1,9 +1,40 @@
-import React from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Loader2, ShieldCheck, FileText, FileCheck2, Clock, Building2, Phone, Mail, MapPin, CalendarDays, Star } from "lucide-react";
+import React, { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Loader2, ShieldCheck, FileText, FileCheck2, Clock, Building2, Phone, Mail, MapPin, CalendarDays, Star, ShieldAlert, X } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { StarRating } from "@/components/StarRating";
-import { api, formatINR, compactINR } from "@/lib/api";
+import { api, formatINR, compactINR, apiErrorMessage } from "@/lib/api";
+import { toast } from "sonner";
+
+function RatingOverride({ vendorId, current }) {
+  const qc = useQueryClient();
+  const [val, setVal] = useState("");
+  const set = useMutation({
+    mutationFn: async (value) => (await api.put(`/admin/vendors/${vendorId}/rating-override`, { value })).data,
+    onSuccess: () => {
+      toast.success("Vendor rating updated");
+      qc.invalidateQueries({ queryKey: ["vendor", vendorId] });
+      qc.invalidateQueries({ queryKey: ["vendors"] });
+      setVal("");
+    },
+    onError: (e) => toast.error(apiErrorMessage(e)),
+  });
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-2.5 text-xs">
+      <span className="flex items-center gap-1 font-500 text-amber-400"><ShieldAlert size={13} /> Moderation:</span>
+      <span className="text-cm-muted">override the shown rating</span>
+      <input
+        type="number" min="0" max="5" step="0.1" value={val}
+        onChange={(e) => setVal(e.target.value)}
+        placeholder="0-5"
+        data-testid="rating-override-input"
+        className="w-16 rounded border border-cm-border bg-cm-bg px-2 py-1 text-center text-cm-text outline-none"
+      />
+      <button onClick={() => val !== "" && set.mutate(Number(val))} data-testid="rating-override-apply" className="rounded bg-cm-accent px-2.5 py-1 font-600 text-black">Apply</button>
+      <button onClick={() => set.mutate(null)} className="flex items-center gap-1 rounded border border-cm-border px-2 py-1 text-cm-muted hover:text-cm-text"><X size={11} /> Clear</button>
+    </div>
+  );
+}
 
 function InfoRow({ icon: Icon, label, value }) {
   return (
@@ -83,6 +114,7 @@ export function VendorDrawer({ vendorId, open, onOpenChange, onApprove, approvin
               {/* Ratings & Reviews */}
               <section>
                 <h3 className="mb-2 font-heading text-sm font-600 uppercase tracking-wide text-cm-muted">Ratings & Reviews</h3>
+                <RatingOverride vendorId={v.id} current={v.rating} />
                 {(() => {
                   const bd = v.rating_breakdown || {};
                   const total = Object.values(bd).reduce((a, b) => a + b, 0);

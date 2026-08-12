@@ -5,7 +5,7 @@ import { VendorResults } from "@/components/VendorResults";
 import { titleCase } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Package, AlertCircle, ArrowLeft, Ruler } from "lucide-react";
+import { Search, Package, AlertCircle, ArrowLeft, Ruler, Star } from "lucide-react";
 import { toast } from "sonner";
 
 export function ShopMode() {
@@ -202,6 +202,12 @@ export function ShopMode() {
                     {m?.category ? titleCase(m.category) + " · " : ""}
                     {m?.unit || "per unit"}
                   </p>
+                  {m?.rating != null && (
+                    <p className="mt-0.5 flex items-center gap-1 text-xs text-[#ff7a2f]">
+                      <Star size={11} className="fill-[#ff7a2f]" /> {m.rating}
+                      <span className="text-white/40">({m.rating_count})</span>
+                    </p>
+                  )}
                 </div>
               </button>
             );

@@ -20,8 +20,8 @@ def buyer_order(o: dict) -> dict:
     return {
         "order_id": o["id"], "status": o["status"], "total": o["total"],
         "payment_method": o["payment_method"], "address": o["address"],
-        "items": [{"material": it["name"], "vendor": it["vendor_name"],
-                   "quantity": it["quantity"], "unit": it["unit"],
+        "items": [{"material": it["name"], "material_id": it["material"], "vendor": it["vendor_name"],
+                   "vendor_id": it["vendor_id"], "quantity": it["quantity"], "unit": it["unit"],
                    "price": it["landed_cost"]} for it in o["items"]],
         "placed_at": iso(o["created_at"]),
         "dispatched_at": iso(o.get("dispatched_at")),

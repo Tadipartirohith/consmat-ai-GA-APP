@@ -78,10 +78,13 @@ class Store:
         self.views: list[dict] = []
         self.reorders: list[dict] = []
         self.complaints: list[dict] = []
+        self.ratings: list[dict] = []
         self._seq = 1000
         self._cseq = 5000
+        self._rseq = 7000
         self._seed_orders(c["app"].get("seed_orders", 12))
         self._seed_complaints()
+        self._seed_ratings()
 
     # --------------------------------------------------------- helpers -------
     def offers_for(self, material: str) -> list[dict]:
@@ -90,9 +93,10 @@ class Store:
             off = v["offers"].get(material)
             if not off:
                 continue
+            vr, vc = self.vendor_rating(v["id"])
             out.append({
                 "vendor_id": v["id"], "vendor_name": v["name"], "tier": v["tier"],
-                "quality": v["quality"], "isi": v["isi"], "credit": v["credit"],
+                "quality": vr, "rating_count": vc, "isi": v["isi"], "credit": v["credit"],
                 "approved": v["approved"], "warehouse_id": v["warehouse"],
                 "warehouse_name": self.warehouses[v["warehouse"]]["name"],
                 "wh": self.warehouses[v["warehouse"]],
@@ -211,6 +215,79 @@ class Store:
 
     def get_complaint(self, cid: str) -> dict | None:
         return next((c for c in self.complaints if c["id"] == cid), None)
+
+    # ------------------------------------------------------ ratings ----------
+    def next_rating_id(self) -> str:
+        self._rseq += 1
+        return f"RAT-{self._rseq}"
+
+    def create_rating(self, r: dict) -> dict:
+        with _LOCK:
+            self.ratings.insert(0, r)
+            return r
+
+    def get_rating(self, rid: str) -> dict | None:
+        return next((r for r in self.ratings if r["id"] == rid), None)
+
+    def _active_ratings(self, kind: str, target_id: str) -> list[dict]:
+        return [r for r in self.ratings
+                if r["kind"] == kind and r["target_id"] == target_id and not r.get("hidden")]
+
+    def vendor_rating(self, vid: str) -> tuple[float, int]:
+        """Effective vendor rating: admin override, else buyer average, else seed quality."""
+        v = self.vendors.get(vid, {})
+        rs = [r["stars"] for r in self._active_ratings("vendor", vid)]
+        if v.get("rating_override") is not None:
+            return round(float(v["rating_override"]), 1), len(rs)
+        if rs:
+            return round(sum(rs) / len(rs), 1), len(rs)
+        return round(float(v.get("quality", 0.0)), 1), 0
+
+    def product_rating(self, mid: str) -> tuple[float | None, int]:
+        m = self.materials.get(mid, {})
+        rs = [r["stars"] for r in self._active_ratings("product", mid)]
+        if m.get("rating_override") is not None:
+            return round(float(m["rating_override"]), 1), len(rs)
+        if rs:
+            return round(sum(rs) / len(rs), 1), len(rs)
+        return None, 0
+
+    def rating_summary(self, kind: str, target_id: str) -> dict:
+        active = self._active_ratings(kind, target_id)
+        breakdown = {str(s): sum(1 for r in active if round(r["stars"]) == s) for s in range(5, 0, -1)}
+        if kind == "vendor":
+            avg, count = self.vendor_rating(target_id)
+        else:
+            avg, count = self.product_rating(target_id)
+        return {"average": avg, "count": len(active), "effective_count": count, "breakdown": breakdown}
+
+    def _seed_ratings(self) -> None:
+        vend = [("v_deccan", 5, "Reliable, on-time."), ("v_ultrabuild", 5, "Top grade cement."),
+                ("v_balaji", 3, "Cheap but packaging was rough."), ("v_metro", 4, "Good steel, fair price.")]
+        for vid, stars, comment in vend:
+            v = self.vendors.get(vid)
+            if not v:
+                continue
+            self.ratings.append({
+                "id": self.next_rating_id(), "kind": "vendor", "target_id": vid,
+                "target_name": v["name"], "stars": stars, "comment": comment,
+                "by": {"role": "buyer", "name": "Ramesh Constructions", "email": "ramesh@build.in"},
+                "order_id": None, "hidden": False,
+                "created_at": _now() - timedelta(days=self.rng.randint(1, 20)),
+            })
+        prod = [("cement", 5, "Sets well, consistent."), ("steel", 4, "Good bend strength."),
+                ("bricks", 4, "Uniform size.")]
+        for mid, stars, comment in prod:
+            m = self.materials.get(mid)
+            if not m:
+                continue
+            self.ratings.append({
+                "id": self.next_rating_id(), "kind": "product", "target_id": mid,
+                "target_name": m["name"], "stars": stars, "comment": comment,
+                "by": {"role": "buyer", "name": "Sri Venkatesh Builders", "email": "venkatesh@sv.in"},
+                "order_id": None, "hidden": False,
+                "created_at": _now() - timedelta(days=self.rng.randint(1, 20)),
+            })
 
     def _seed_complaints(self) -> None:
         placed = [o for o in self.orders if o["status"] in ("dispatched", "delivered")]

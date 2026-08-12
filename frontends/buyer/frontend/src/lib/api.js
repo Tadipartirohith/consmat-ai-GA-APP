@@ -102,4 +102,15 @@ export async function addComplaintMessage(id, note) {
   return data;
 }
 
+// ---- Ratings ----
+export async function submitRating(payload) {
+  // { kind: "vendor"|"product", target_id, stars, comment?, order_id? }
+  const { data } = await client.post("/ratings", payload);
+  return data;
+}
+export async function getRatings(kind, targetId) {
+  const { data } = await client.get("/ratings", { params: { kind, target_id: targetId } });
+  return data; // { summary, ratings }
+}
+
 export default client;

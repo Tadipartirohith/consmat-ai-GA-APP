@@ -34,9 +34,13 @@ def me(user: dict = Depends(current_user)):
 
 @router.get("/materials")
 def materials():
-    return [{"id": m["id"], "name": m["name"], "category": m["category"], "unit": m["unit"],
-             "grade": m["grade"], "qty_hint": m["qty_hint"], "image_url": m.get("image_url", "")}
-            for m in store.materials.values()]
+    out = []
+    for m in store.materials.values():
+        rating, count = store.product_rating(m["id"])
+        out.append({"id": m["id"], "name": m["name"], "category": m["category"], "unit": m["unit"],
+                    "grade": m["grade"], "qty_hint": m["qty_hint"], "image_url": m.get("image_url", ""),
+                    "rating": rating, "rating_count": count})
+    return out
 
 
 @router.get("/warehouses")

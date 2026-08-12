@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LiveTracking } from "@/components/LiveTracking";
 import { ComplaintDialog } from "@/components/ComplaintDialog";
+import { RateDialog } from "@/components/RateDialog";
 import { toast } from "sonner";
 import {
   Receipt,
@@ -33,6 +34,7 @@ import {
   Search,
   RefreshCw,
   LifeBuoy,
+  Star,
 } from "lucide-react";
 
 const STEP_ICONS = { placed: Check, dispatched: Truck, delivered: PackageCheck };
@@ -209,6 +211,7 @@ function OrderDetailDialog({ order, updatedAt, onClose }) {
   const [pulse, setPulse] = useState(false);
   const [tracking, setTracking] = useState(false);
   const [complaintOpen, setComplaintOpen] = useState(false);
+  const [rateOpen, setRateOpen] = useState(false);
 
   useEffect(() => {
     if (!updatedAt) return;
@@ -372,10 +375,40 @@ function OrderDetailDialog({ order, updatedAt, onClose }) {
           </Button>
         </div>
 
+        {rawStatus.includes("deliver") && (
+          <Button
+            data-testid="rate-order-btn"
+            onClick={() => setRateOpen(true)}
+            variant="outline"
+            className="w-full border-[#ff7a2f]/40 bg-[#ff7a2f]/10 text-[#ff7a2f] hover:bg-[#ff7a2f]/20"
+          >
+            <Star size={16} className="mr-1.5" /> Rate vendors & products
+          </Button>
+        )}
+
         <ComplaintDialog
           open={complaintOpen}
           onOpenChange={setComplaintOpen}
           orderId={g(order, ["order_id", "id", "orderId"])}
+        />
+        <RateDialog
+          open={rateOpen}
+          onOpenChange={setRateOpen}
+          orderId={g(order, ["order_id", "id", "orderId"])}
+          targets={(() => {
+            const arr = Array.isArray(items) ? items : [];
+            const vendors = new Map();
+            const products = new Map();
+            arr.forEach((it) => {
+              const vid = g(it, ["vendor_id"]);
+              const vname = g(it, ["vendor", "vendor_name"]);
+              if (vid && !vendors.has(vid)) vendors.set(vid, { kind: "vendor", id: vid, name: vname });
+              const mid = g(it, ["material_id"]);
+              const mname = g(it, ["material", "name"]);
+              if (mid && !products.has(mid)) products.set(mid, { kind: "product", id: mid, name: mname });
+            });
+            return [...vendors.values(), ...products.values()];
+          })()}
         />
       </DialogContent>
     </Dialog>
