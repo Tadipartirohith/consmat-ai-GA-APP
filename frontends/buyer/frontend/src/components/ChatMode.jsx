@@ -97,6 +97,7 @@ export function ChatMode() {
         quantity: it.quantity || 1,
         unit: it.unit || "units",
         vendor: it.vendor || it.vendor_name,
+        vendor_id: it.vendor_id,
         price: it.landed_price ?? it.price,
         unit_price: it.unit_price ?? it.price_per_unit,
         logistics: it.logistics ?? it.logistics_cost ?? 0,

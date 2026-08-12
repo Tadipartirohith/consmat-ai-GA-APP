@@ -43,6 +43,7 @@ export function CheckoutModal({ open, onOpenChange, optimizeResult, onDone }) {
           quantity: c.quantity,
           unit: c.unit,
           vendor: c.vendor,
+          vendor_id: c.vendor_id,
           price: c.price,
         })),
         payment_method: method,

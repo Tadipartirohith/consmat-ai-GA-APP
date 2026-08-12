@@ -157,7 +157,7 @@ vendors:
     gstin: "36ABX5678K9K2"
     warehouse: ibrahim
     approved: true
-    offers: { cement: {price: 388, stock: 900}, sand: {price: 1150, stock: 300}, aggregate: {price: 1050, stock: 400} }
+    offers: { cement: {price: 388, stock: 30}, sand: {price: 1150, stock: 300}, aggregate: {price: 1050, stock: 400} }
   - id: v_ultrabuild
     name: "UltraBuild Wholesale"
     tier: Wholesaler

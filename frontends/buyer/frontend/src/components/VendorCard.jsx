@@ -1,8 +1,9 @@
 import React from "react";
-import { MapPin, Route, Package, Truck, Info, Plus } from "lucide-react";
+import { MapPin, Route, Package, Truck, Info, Plus, AlertTriangle } from "lucide-react";
 import { StarRating } from "@/components/StarRating";
 import { formatINR, titleCase } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 // Defensive accessor for varied API field names.
 const pick = (obj, keys, fallback = undefined) => {
@@ -12,7 +13,15 @@ const pick = (obj, keys, fallback = undefined) => {
   return fallback;
 };
 
-export function VendorCard({ data, onAdd, index = 0, compact = false }) {
+export function VendorCard({
+  data,
+  onAdd,
+  index = 0,
+  allocMode = false,
+  allocation = 0,
+  onAllocChange,
+  target = 0,
+}) {
   const vendor = pick(data, ["vendor", "vendor_name", "name", "supplier"], "Vendor");
   const material = pick(data, ["material", "material_name", "product"], "");
   const quantity = pick(data, ["quantity", "qty"]);
@@ -25,6 +34,13 @@ export function VendorCard({ data, onAdd, index = 0, compact = false }) {
   const distance = pick(data, ["distance", "distance_km", "distanceKm", "km"]);
   const why = pick(data, ["why", "reason", "explanation", "rationale"], "");
   const perUnit = pick(data, ["price_per_unit", "unit_price", "rate"]);
+  const stock = pick(data, ["stock", "available", "in_stock_qty"]);
+
+  // Surface stock only when it matters: running low, or can't cover the order.
+  const cannotCover = stock != null && target > 0 && stock < target;
+  const showStock = stock != null && (stock <= 50 || cannotCover);
+  const maxAlloc = stock != null ? stock : target || undefined;
+  const lineTotal = allocation > 0 ? (Number(perUnit) || 0) * allocation + (Number(logisticsCost) || 0) : 0;
 
   return (
     <div
@@ -40,7 +56,7 @@ export function VendorCard({ data, onAdd, index = 0, compact = false }) {
           {material ? (
             <p className="mt-0.5 text-sm text-white/60 truncate">
               {titleCase(material)}
-              {quantity ? ` · ${quantity} ${unit}` : ""}
+              {!allocMode && quantity ? ` · ${quantity} ${unit}` : ""}
             </p>
           ) : null}
         </div>
@@ -49,17 +65,41 @@ export function VendorCard({ data, onAdd, index = 0, compact = false }) {
 
       <div className="mt-4 flex items-end justify-between">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Landed price</p>
-          <p className="font-mono text-2xl font-bold text-[#ff7a2f]" data-testid="landed-price">
-            {formatINR(landed)}
+          <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">
+            {allocMode ? "Price" : "Landed price"}
           </p>
-          {perUnit ? (
-            <p className="text-xs text-white/50">{formatINR(perUnit)} / {unit || "unit"}</p>
-          ) : null}
+          {allocMode ? (
+            <p className="font-mono text-2xl font-bold text-[#ff7a2f]">
+              {formatINR(perUnit)}
+              <span className="text-sm font-normal text-white/50"> / {unit || "unit"}</span>
+            </p>
+          ) : (
+            <>
+              <p className="font-mono text-2xl font-bold text-[#ff7a2f]" data-testid="landed-price">
+                {formatINR(landed)}
+              </p>
+              {perUnit ? (
+                <p className="text-xs text-white/50">
+                  {formatINR(perUnit)} / {unit || "unit"}
+                </p>
+              ) : null}
+            </>
+          )}
         </div>
+        {showStock && (
+          <span
+            data-testid="vendor-stock"
+            className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold ${
+              cannotCover ? "bg-[#f59e0b]/15 text-[#f59e0b]" : "bg-white/5 text-white/60"
+            }`}
+          >
+            {cannotCover && <AlertTriangle size={12} />}
+            {cannotCover ? `Only ${stock} ${unit} left` : `${stock} ${unit} in stock`}
+          </span>
+        )}
       </div>
 
-      {(materialCost !== undefined || logisticsCost !== undefined) && (
+      {!allocMode && (materialCost !== undefined || logisticsCost !== undefined) && (
         <div className="mt-4 space-y-1.5 rounded-lg bg-black/25 p-3">
           <div className="flex items-center justify-between text-sm">
             <span className="flex items-center gap-2 text-white/60">
@@ -91,31 +131,63 @@ export function VendorCard({ data, onAdd, index = 0, compact = false }) {
         </div>
       )}
 
-      {why ? (
+      {!allocMode && why ? (
         <div className="mt-3 flex items-start gap-2 rounded-lg border border-[#ff7a2f]/20 bg-[#ff7a2f]/5 p-2.5 text-xs text-white/70">
           <Info size={14} className="mt-0.5 shrink-0 text-[#ff7a2f]" />
           <span>{why}</span>
         </div>
       ) : null}
 
-      {onAdd && (
-        <Button
-          data-testid="vendor-add-to-cart"
-          onClick={() =>
-            onAdd({
-              material: material || vendor,
-              quantity: quantity || 1,
-              unit,
-              vendor,
-              price: landed,
-              unit_price: perUnit,
-              logistics: logisticsCost,
-            })
-          }
-          className="mt-4 w-full rounded-lg bg-[#ff7a2f] font-semibold text-black hover:bg-[#e66822]"
-        >
-          <Plus size={16} className="mr-1" /> Add to cart
-        </Button>
+      {allocMode ? (
+        <div className="mt-4 border-t border-white/10 pt-3">
+          <label className="mb-1.5 block text-[10px] uppercase tracking-[0.2em] text-white/40">
+            Buy from this vendor ({unit})
+          </label>
+          <div className="flex items-center gap-2">
+            <Input
+              data-testid="vendor-alloc-input"
+              type="number"
+              min="0"
+              max={maxAlloc}
+              value={allocation || ""}
+              onChange={(e) => {
+                let v = Math.max(0, Number(e.target.value) || 0);
+                if (stock != null) v = Math.min(v, stock);
+                onAllocChange?.(v);
+              }}
+              placeholder="0"
+              className="h-9 border-white/10 bg-[#0f1216] text-center"
+            />
+            <span className="w-10 shrink-0 text-xs text-white/40">{unit}</span>
+          </div>
+          {allocation > 0 && (
+            <p className="mt-2 text-right text-sm">
+              <span className="text-white/50">Subtotal </span>
+              <span className="font-mono font-bold text-[#ff7a2f]">{formatINR(lineTotal)}</span>
+              <span className="text-[11px] text-white/40"> incl. delivery</span>
+            </p>
+          )}
+        </div>
+      ) : (
+        onAdd && (
+          <Button
+            data-testid="vendor-add-to-cart"
+            onClick={() =>
+              onAdd({
+                material: material || vendor,
+                quantity: quantity || 1,
+                unit,
+                vendor,
+                price: landed,
+                unit_price: perUnit,
+                logistics: logisticsCost,
+              })
+            }
+            className="mt-4 w-full rounded-lg bg-[#ff7a2f] font-semibold text-black hover:bg-[#e66822]"
+          >
+            <Plus size={16} className="mr-1" /> Add to cart
+          </Button>
+        )
       )}
     </div>
   );

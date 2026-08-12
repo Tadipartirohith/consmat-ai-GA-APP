@@ -139,7 +139,7 @@ export function ShopMode() {
             ))}
           </div>
         ) : results && results.length > 0 ? (
-          <VendorResults cards={results} onAdd={addToCart} />
+          <VendorResults cards={results} onAdd={addToCart} target={qtyNum} unit={unit} />
         ) : (
           <EmptyState text="No vendor matches returned for that quantity." />
         )}

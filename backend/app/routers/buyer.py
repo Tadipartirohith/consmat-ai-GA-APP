@@ -62,7 +62,7 @@ def match_cards(material_id: str, quantity: float, location: str, pq: int) -> li
             "quality": r["quality"], "warehouse": r["warehouse_name"],
             "distance": r["distance_km"], "why": _why(rows, r),
             "price_per_unit": r["unit_price"], "rank": r["rank"], "in_stock": r["in_stock"],
-            "credit": r["credit"], "isi": r["isi"], "tier": r["tier"],
+            "stock": r["stock"], "credit": r["credit"], "isi": r["isi"], "tier": r["tier"],
         })
     return out
 
@@ -292,7 +292,10 @@ def _inr(n) -> str:
 
 
 def _build_lines(items: list, loc: str, pq: int):
-    """items: [(material_id, quantity)] -> (suggestions, first-material cards, grand_total)."""
+    """items: [(material_id, quantity)] -> (suggestions, first-material cards, grand_total).
+
+    Each material's quantity is filled cheapest-first across vendors while respecting
+    stock, so a single material can produce several suggestion lines (one per vendor)."""
     sugg, cards, grand = [], [], 0.0
     for mid, q in items:
         rows = match_cards(mid, q, loc, pq)
@@ -300,12 +303,17 @@ def _build_lines(items: list, loc: str, pq: int):
             continue
         if not cards:
             cards = rows
-        best = rows[0]
-        grand += best["landed_price"]
-        sugg.append({"material": store.materials[mid]["name"], "quantity": q,
-                     "unit": store.materials[mid]["unit"], "vendor": best["vendor"],
-                     "landed_price": best["landed_price"],
-                     "unit_price": best["price_per_unit"], "logistics": best["logistics_cost"]})
+        m = store.materials[mid]
+        alloc, _short = domain.split_fill(store.offers_for(mid), q, store.dest(loc), mid, store.pricing)
+        if not alloc:
+            continue
+        for a in alloc:
+            grand += a["landed_price"]
+            sugg.append({"material": m["name"], "quantity": a["quantity"], "unit": m["unit"],
+                         "vendor": a["vendor_name"], "vendor_id": a["vendor_id"],
+                         "landed_price": a["landed_price"],
+                         "unit_price": a["unit_price"], "logistics": a["logistics"],
+                         "stock": a["stock"]})
     return sugg, cards, grand
 
 
@@ -461,12 +469,14 @@ def _optimize(items: list[OptItem], location: str) -> dict:
         if not mid:
             continue
         pairs.append((mid, it.quantity))
-        best = domain.cheapest(store.offers_for(mid), it.quantity, dest, mid, store.pricing)
-        if best:
-            split_total += best["landed_cost"]
-            split.append({"material": store.materials[mid]["name"], "vendor": best["vendor_name"],
-                          "landed_price": round(best["landed_cost"], 2),
-                          "quantity": it.quantity, "unit": store.materials[mid]["unit"]})
+        m = store.materials[mid]
+        # Cheapest-first across vendors, respecting stock (a material can split).
+        alloc, _short = domain.split_fill(store.offers_for(mid), it.quantity, dest, mid, store.pricing)
+        for a in alloc:
+            split_total += a["landed_price"]
+            split.append({"material": m["name"], "vendor": a["vendor_name"],
+                          "landed_price": a["landed_price"],
+                          "quantity": a["quantity"], "unit": m["unit"]})
     # best single vendor covering the most
     best_single = None
     for v in store.vendors.values():
@@ -515,7 +525,24 @@ class CheckoutItem(BaseModel):
     quantity: float
     unit: Optional[str] = None
     vendor: Optional[str] = None
+    vendor_id: Optional[str] = None
     price: Optional[float] = None
+
+
+def _vendor_row(mid: str, quantity: float, dest: dict, vendor_key: str):
+    """Price a specific vendor's offer for `quantity` (honours the buyer's choice)."""
+    key = str(vendor_key).strip().lower()
+    for o in store.offers_for(mid):
+        if o["vendor_id"].lower() == key or o["vendor_name"].lower() == key:
+            if o["stock"] <= 0:
+                return None
+            km = domain.distance_km(o["wh"], dest)
+            logi = domain.logistics_cost(km, mid, store.pricing)
+            mat = o["unit_price"] * quantity
+            return {**o, "distance_km": km, "logistics_cost": round(logi, 2),
+                    "material_cost": round(mat, 2), "landed_cost": round(mat + logi, 2),
+                    "value_score": 0, "in_stock": o["stock"] >= quantity}
+    return None
 
 
 TRANSPORT_MODES = {"inbuilt", "external", "self"}
@@ -538,7 +565,12 @@ def checkout(body: CheckoutBody, user: dict | None = Depends(optional_user)):
         mid = resolve_material(it.material)
         if not mid:
             continue
-        best = domain.cheapest(store.offers_for(mid), it.quantity, dest, mid, store.pricing)
+        best = None
+        chosen = it.vendor_id or it.vendor
+        if chosen:                                   # honour the buyer's chosen vendor
+            best = _vendor_row(mid, it.quantity, dest, chosen)
+        if not best:                                 # fall back to cheapest reliable vendor
+            best = domain.cheapest(store.offers_for(mid), it.quantity, dest, mid, store.pricing)
         if not best:
             continue
         item = store._mk_item(mid, it.quantity, best)

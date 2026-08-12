@@ -60,6 +60,37 @@ def cheapest(offers: list[dict], quantity: float, dest: dict, material: str, cfg
     return min(ranked, key=lambda r: r["landed_cost"]) if ranked else None
 
 
+def split_fill(offers: list[dict], quantity: float, dest: dict, material: str,
+               cfg: dict) -> tuple[list[dict], float]:
+    """Cheapest-first allocation of `quantity` across vendors, respecting each
+    vendor's available stock. Returns (allocations, shortfall). Each allocation is
+    {vendor_id, vendor_name, quantity, unit_price, logistics, landed_price, ...}.
+    Logistics is a fixed per-delivery cost, so every vendor used adds its own."""
+    rows = rank_vendors(offers, quantity, dest, 5, material, cfg)
+    rows = sorted(rows, key=lambda r: (r["unit_price"], -r["quality"]))
+    remaining = float(quantity)
+    out: list[dict] = []
+    for r in rows:
+        if remaining <= 1e-9:
+            break
+        take = min(remaining, float(r["stock"]))
+        if take <= 0:
+            continue
+        # keep tonne/pcs style rounding sane; cement is whole bags
+        take = math.ceil(take) if material == "cement" else round(take, 2)
+        take = min(take, float(r["stock"]))
+        landed = r["unit_price"] * take + r["logistics_cost"]
+        out.append({
+            "vendor_id": r["vendor_id"], "vendor_name": r["vendor_name"],
+            "quantity": take, "unit_price": r["unit_price"],
+            "logistics": round(r["logistics_cost"], 2), "landed_price": round(landed, 2),
+            "distance_km": r["distance_km"], "quality": r["quality"],
+            "warehouse_name": r["warehouse_name"], "stock": r["stock"],
+        })
+        remaining -= take
+    return out, max(0.0, round(remaining, 2))
+
+
 def compute_bom(area_per_floor: float, floors: int, multiplier: float,
                 brick_walls: bool, materials: dict) -> tuple[float, list[dict]]:
     total = area_per_floor * floors
